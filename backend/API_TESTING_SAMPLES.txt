@@ -1,0 +1,257 @@
+========================================
+CHESS REELS API - SAMPLE TEST DATA
+========================================
+
+============ TEST CREDENTIALS ============
+
+Regular User 1:
+  Email: user@chessreels.com
+  Password: user123
+
+Regular User 2:
+  Email: master@chessreels.com
+  Password: user123
+
+Admin User:
+  Email: admin@chessreels.com
+  Password: admin123
+
+==========================================
+
+============ AUTH ENDPOINTS ============
+
+1. LOGIN (Get Token)
+-------------------
+POST http://localhost:5000/auth/login
+Content-Type: application/json
+
+Regular User:
+{
+  "email": "user@chessreels.com",
+  "password": "user123"
+}
+
+Admin User:
+{
+  "email": "admin@chessreels.com",
+  "password": "admin123"
+}
+
+2. REGISTER (New User)
+----------------------
+POST http://localhost:5000/auth/register
+Content-Type: application/json
+
+{
+  "username": "newplayer",
+  "email": "newplayer@example.com",
+  "password": "password123"
+}
+
+==========================================
+
+============ REELS ENDPOINTS ============
+
+Note: Replace {reelId} with actual reel ID from database
+Note: Replace {token} with JWT token from login
+
+--- PUBLIC (No Auth Required) ---
+
+1. GET FEED (Paginated)
+-----------------------
+GET http://localhost:5000/reels
+GET http://localhost:5000/reels?page=1&limit=5
+
+2. GET SINGLE REEL
+------------------
+GET http://localhost:5000/reels/{reelId}
+
+3. SEARCH REELS
+---------------
+GET http://localhost:5000/reels/search?query=kasparov
+GET http://localhost:5000/reels/search?tags=opening,tactics
+GET http://localhost:5000/reels/search?difficulty=beginner
+GET http://localhost:5000/reels/search?query=chess&difficulty=intermediate&page=1&limit=10
+
+4. GET TRENDING REELS
+---------------------
+GET http://localhost:5000/reels/trending
+GET http://localhost:5000/reels/trending?limit=5
+
+5. FILTER BY DIFFICULTY
+-----------------------
+GET http://localhost:5000/reels/filter/difficulty/beginner
+GET http://localhost:5000/reels/filter/difficulty/intermediate
+GET http://localhost:5000/reels/filter/difficulty/advanced
+
+6. GET REEL STATS
+-----------------
+GET http://localhost:5000/reels/{reelId}/stats
+
+7. RECORD VIEW
+--------------
+POST http://localhost:5000/reels/{reelId}/view
+
+8. GET COMMENTS FOR REEL
+------------------------
+GET http://localhost:5000/reels/{reelId}/comments
+
+--- AUTHENTICATED (Token Required) ---
+
+Headers for all authenticated requests:
+Authorization: Bearer {token}
+
+9. LIKE A REEL
+--------------
+POST http://localhost:5000/reels/{reelId}/like
+Authorization: Bearer {token}
+
+10. UNLIKE A REEL
+-----------------
+POST http://localhost:5000/reels/{reelId}/unlike
+Authorization: Bearer {token}
+
+11. CREATE COMMENT
+------------------
+POST http://localhost:5000/reels/{reelId}/comments
+Authorization: Bearer {token}
+Content-Type: application/json
+
+Regular Comment:
+{
+  "text": "Great video! Learned a lot from this."
+}
+
+Reply to Comment:
+{
+  "text": "I agree with your point!",
+  "parentCommentId": "{commentId}"
+}
+
+12. DELETE COMMENT
+------------------
+DELETE http://localhost:5000/reels/{reelId}/comments/{commentId}
+Authorization: Bearer {token}
+
+==========================================
+
+============ ADMIN ENDPOINTS ============
+
+Note: Requires Admin JWT Token
+Headers: Authorization: Bearer {adminToken}
+
+1. UPLOAD NEW REEL
+------------------
+POST http://localhost:5000/admin/video
+Authorization: Bearer {adminToken}
+Content-Type: application/json
+
+{
+  "adminId": "admin123",
+  "videoData": {
+    "video": {
+      "url": "https://cdn.app.com/videos/new-video.mp4",
+      "thumbnail": "https://cdn.app.com/thumbs/new-video.jpg",
+      "durationSec": 120
+    },
+    "content": {
+      "title": "New Chess Tutorial",
+      "description": "Learn amazing chess tactics in this video!",
+      "tags": ["tutorial", "tactics", "opening"],
+      "difficulty": "intermediate"
+    },
+    "status": "published"
+  }
+}
+
+2. UPDATE REEL
+--------------
+PUT http://localhost:5000/admin/video/{videoId}
+Authorization: Bearer {adminToken}
+Content-Type: application/json
+
+{
+  "updatedData": {
+    "content": {
+      "title": "Updated Title",
+      "description": "Updated description"
+    },
+    "status": "published"
+  }
+}
+
+3. DELETE REEL
+--------------
+DELETE http://localhost:5000/admin/video/{videoId}
+Authorization: Bearer {adminToken}
+
+4. GET ALL VIDEOS (Admin View)
+------------------------------
+GET http://localhost:5000/admin/videos
+Authorization: Bearer {adminToken}
+
+5. GET VIDEO BY ID (Admin View)
+-------------------------------
+GET http://localhost:5000/admin/video/{videoId}
+Authorization: Bearer {adminToken}
+
+==========================================
+
+============ POSTMAN TESTING FLOW ============
+
+Step 1: Run seed script
+  > node seed.js
+
+Step 2: Login as Admin
+  POST /auth/login with admin credentials
+  Save the token
+
+Step 3: Upload a Reel (Admin)
+  POST /admin/video with the token
+  Note the videoId in response
+
+Step 4: Login as Regular User
+  POST /auth/login with user credentials
+  Save the token
+
+Step 5: View Feed
+  GET /reels
+  Pick a reelId
+
+Step 6: Interact with Reel
+  POST /reels/{reelId}/view (no auth)
+  POST /reels/{reelId}/like (with user token)
+  POST /reels/{reelId}/comments (with user token)
+
+Step 7: Check Stats
+  GET /reels/{reelId}/stats
+
+==========================================
+
+============ SAMPLE CURL COMMANDS ============
+
+# Login as admin
+curl -X POST http://localhost:5000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@chessreels.com","password":"admin123"}'
+
+# Get feed
+curl http://localhost:5000/reels
+
+# Get trending
+curl http://localhost:5000/reels/trending?limit=3
+
+# Search
+curl "http://localhost:5000/reels/search?query=kasparov"
+
+# Like a reel (replace TOKEN and REEL_ID)
+curl -X POST http://localhost:5000/reels/REEL_ID/like \
+  -H "Authorization: Bearer TOKEN"
+
+# Create comment (replace TOKEN and REEL_ID)
+curl -X POST http://localhost:5000/reels/REEL_ID/comments \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TOKEN" \
+  -d '{"text":"Amazing tutorial!"}'
+
+==========================================
