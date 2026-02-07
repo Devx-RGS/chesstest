@@ -147,14 +147,23 @@ export const useAuthStore = create<AuthState>()(
                 }
             },
 
-            logout: () =>
+            logout: () => {
+                // Clear reel store to prevent like/save state leaking between users
+                const { useReelStore } = require("@/stores/reelStore");
+                useReelStore.getState().reset();
+
+                // Invalidate all TanStack Query cache to ensure fresh data for next user
+                const { queryClient } = require("@/services/api");
+                queryClient.clear();
+
                 set({
                     user: null,
                     token: null,
                     isAuthenticated: false,
                     isAdmin: false,
                     error: null,
-                }),
+                });
+            },
 
             updateProfile: (profile) => {
                 set((state) => {

@@ -17,7 +17,16 @@ const isConsecutiveDay = (date1, date2) => {
 // GET /streak - Get user's current streak
 export const getStreak = async (req, res) => {
     try {
-        const userId = req.user.userId;
+        const userId = req.user?.userId;
+
+        // Skip streak tracking for admin users or if no valid userId
+        if (!userId || req.user?.isAdmin || typeof userId !== 'string' || userId.length !== 24) {
+            return res.json({
+                currentStreak: 0,
+                longestStreak: 0,
+                lastActiveDate: null,
+            });
+        }
 
         // Use findOneAndUpdate with upsert to atomically create if not exists
         const streak = await UserStreak.findOneAndUpdate(
@@ -41,7 +50,18 @@ export const getStreak = async (req, res) => {
 // POST /streak/record - Record user activity and update streak
 export const recordActivity = async (req, res) => {
     try {
-        const userId = req.user.userId;
+        const userId = req.user?.userId;
+
+        // Skip streak tracking for admin users or if no valid userId
+        if (!userId || req.user?.isAdmin || typeof userId !== 'string' || userId.length !== 24) {
+            return res.json({
+                message: "Streak tracking skipped for admin users",
+                currentStreak: 0,
+                longestStreak: 0,
+                lastActiveDate: null,
+            });
+        }
+
         const today = new Date();
         today.setHours(0, 0, 0, 0); // Normalize to start of day
 

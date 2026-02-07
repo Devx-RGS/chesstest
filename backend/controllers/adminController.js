@@ -1,10 +1,40 @@
 import Reel from "../models/Reel.js";
 import Grandmaster from "../models/Grandmaster.js";
+import ChessGame from "../models/ChessGame.js";
 
 // POST /admin/video - Upload a new Video (Reel)
 export const uploadVideo = async (req, res) => {
     try {
         const { adminId, videoData } = req.body;
+
+        // Handle game creation/lookup if white and black players are provided
+        let gameId = videoData?.gameId || null;
+        // Trim and normalize player names to prevent duplicates
+        const whitePlayer = (videoData?.content?.whitePlayer || videoData?.whitePlayer || "").trim();
+        const blackPlayer = (videoData?.content?.blackPlayer || videoData?.blackPlayer || "").trim();
+
+        if (whitePlayer && blackPlayer && !gameId) {
+            // Case-insensitive search for existing game to prevent duplicates
+            let game = await ChessGame.findOne({
+                whitePlayer: { $regex: new RegExp(`^${whitePlayer}$`, 'i') },
+                blackPlayer: { $regex: new RegExp(`^${blackPlayer}$`, 'i') }
+            });
+            if (!game) {
+                game = new ChessGame({
+                    whitePlayer,
+                    blackPlayer,
+                    event: (videoData?.event || "").trim(),
+                    year: videoData?.year || new Date().getFullYear(),
+                    result: videoData?.result || "*",
+                    pgn: videoData?.pgn || "",
+                });
+                await game.save();
+                console.log(`Created new game: ${whitePlayer} vs ${blackPlayer}`);
+            } else {
+                console.log(`Found existing game: ${whitePlayer} vs ${blackPlayer}`);
+            }
+            gameId = game._id;
+        }
 
         const newVideo = new Reel({
             video: {
@@ -18,10 +48,8 @@ export const uploadVideo = async (req, res) => {
                 tags: videoData?.content?.tags || [],
                 difficulty: videoData?.content?.difficulty || "beginner",
             },
-            gameId: videoData?.gameId || null,
+            gameId: gameId,
             status: videoData?.status || "draft",
-            folder: videoData?.folder || "random",
-            grandmaster: videoData?.grandmaster || null,
         });
 
         const savedVideo = await newVideo.save();
@@ -56,8 +84,6 @@ export const updateVideo = async (req, res) => {
                     "content.difficulty": updatedData?.content?.difficulty,
                     gameId: updatedData?.gameId,
                     status: updatedData?.status,
-                    folder: updatedData?.folder,
-                    grandmaster: updatedData?.grandmaster,
                 },
             },
             { new: true, runValidators: true }
@@ -133,11 +159,22 @@ export const getAdminStats = async (req, res) => {
         const publishedReels = await Reel.countDocuments({ status: "published" });
         const draftReels = await Reel.countDocuments({ status: "draft" });
 
-        // Sum up views from all reels
-        const viewsResult = await Reel.aggregate([
-            { $group: { _id: null, totalViews: { $sum: "$engagement.views" } } }
+        // Count total users
+        const User = (await import("../models/User.js")).default;
+        const totalUsers = await User.countDocuments();
+
+        // Sum up views and likes from all reels
+        const engagementResult = await Reel.aggregate([
+            {
+                $group: {
+                    _id: null,
+                    totalViews: { $sum: "$engagement.views" },
+                    totalLikes: { $sum: "$engagement.likes" }
+                }
+            }
         ]);
-        const totalViews = viewsResult.length > 0 ? viewsResult[0].totalViews : 0;
+        const totalViews = engagementResult.length > 0 ? engagementResult[0].totalViews : 0;
+        const totalLikes = engagementResult.length > 0 ? engagementResult[0].totalLikes : 0;
 
         res.json({
             success: true,
@@ -146,6 +183,8 @@ export const getAdminStats = async (req, res) => {
                 publishedReels,
                 draftReels,
                 totalViews,
+                totalLikes,
+                totalUsers,
             },
         });
         console.log(`GET /admin/stats - Stats fetched`);

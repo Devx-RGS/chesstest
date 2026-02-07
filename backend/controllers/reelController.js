@@ -1,7 +1,6 @@
 import Reel from "../models/Reel.js";
 import ChessGame from "../models/ChessGame.js";
 import Comment from "../models/Comment.js";
-import Grandmaster from "../models/Grandmaster.js";
 
 // GET /reels - Get all published reels (paginated feed)
 export const getFeed = async (req, res) => {
@@ -71,7 +70,9 @@ export const getRandomReels = async (req, res) => {
 export const getAvailableGames = async (req, res) => {
     try {
         // Get all games that have at least one published reel
-        const gamesWithReels = await Reel.distinct("gameId", { status: "published" });
+        const allGameIds = await Reel.distinct("gameId", { status: "published" });
+        // Filter out null/undefined values to prevent ObjectId casting errors
+        const gamesWithReels = allGameIds.filter(id => id != null);
 
         const games = await ChessGame.find({ _id: { $in: gamesWithReels } })
             .select("whitePlayer blackPlayer event year result")
@@ -206,96 +207,5 @@ export const getReelStats = async (req, res) => {
     } catch (err) {
         console.error("GET /reels/:reelId/stats - Error:", err);
         res.status(500).json({ error: "Failed to fetch reel stats", message: err.message });
-    }
-};
-
-// GET /reels/folders - Get public folder stats (random vs grandmaster counts)
-export const getPublicFolderStats = async (req, res) => {
-    try {
-        const randomCount = await Reel.countDocuments({ status: "published", folder: "random" });
-        const grandmasterCount = await Reel.countDocuments({ status: "published", folder: "grandmaster" });
-
-        res.json({
-            success: true,
-            folders: {
-                random: randomCount,
-                grandmaster: grandmasterCount,
-            },
-        });
-        console.log(`GET /reels/folders - random: ${randomCount}, grandmaster: ${grandmasterCount}`);
-    } catch (err) {
-        console.error("GET /reels/folders - Error:", err);
-        res.status(500).json({ error: "Failed to fetch folder stats", message: err.message });
-    }
-};
-
-// GET /reels/grandmasters - Get list of grandmasters with reel counts
-export const getPublicGrandmasters = async (req, res) => {
-    try {
-        // Get all grandmaster folders
-        const grandmasters = await Grandmaster.find().sort({ name: 1 });
-
-        // Get reel counts for each grandmaster
-        const grandmastersWithCounts = await Promise.all(
-            grandmasters.map(async (gm) => {
-                const reelCount = await Reel.countDocuments({
-                    status: "published",
-                    folder: "grandmaster",
-                    grandmaster: gm.name,
-                });
-                return {
-                    _id: gm._id,
-                    name: gm.name,
-                    thumbnail: gm.thumbnail,
-                    reelCount,
-                };
-            })
-        );
-
-        res.json({
-            success: true,
-            grandmasters: grandmastersWithCounts,
-        });
-        console.log(`GET /reels/grandmasters - Found ${grandmastersWithCounts.length} grandmasters`);
-    } catch (err) {
-        console.error("GET /reels/grandmasters - Error:", err);
-        res.status(500).json({ error: "Failed to fetch grandmasters", message: err.message });
-    }
-};
-
-// GET /reels/by-folder - Get reels filtered by folder and optionally grandmaster
-export const getReelsByFolder = async (req, res) => {
-    try {
-        const { folder, grandmaster } = req.query;
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
-        const skip = (page - 1) * limit;
-
-        const query = { status: "published" };
-        if (folder) query.folder = folder;
-        if (grandmaster) query.grandmaster = grandmaster;
-
-        const reels = await Reel.find(query)
-            .populate("gameId")
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limit);
-
-        const total = await Reel.countDocuments(query);
-
-        res.json({
-            success: true,
-            reels,
-            pagination: {
-                currentPage: page,
-                totalPages: Math.ceil(total / limit),
-                totalReels: total,
-                hasMore: page * limit < total,
-            },
-        });
-        console.log(`GET /reels/by-folder - folder: ${folder}, grandmaster: ${grandmaster}, found: ${reels.length}`);
-    } catch (err) {
-        console.error("GET /reels/by-folder - Error:", err);
-        res.status(500).json({ error: "Failed to fetch reels by folder", message: err.message });
     }
 };

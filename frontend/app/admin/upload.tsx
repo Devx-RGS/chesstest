@@ -12,11 +12,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
-import { Upload, Link, Check, ArrowLeft, Film, Hash, FolderOpen, User } from "lucide-react-native";
+import { Upload, Link, Check, ArrowLeft, Film, Hash, Gamepad2 } from "lucide-react-native";
 import { colors } from "@/constants/themes";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { apiClient } from "@/services/api";
-import { useGrandmasterFolders, GrandmasterFolder } from "@/services/adminApi";
 import { GlassCard } from "@/components/ui/GlassCard";
 import * as Haptics from "expo-haptics";
 
@@ -32,10 +31,7 @@ type UploadMode = "local" | "url";
 export default function UploadReelScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
-    const params = useLocalSearchParams<{ grandmaster?: string }>();
-
-    // Fetch grandmaster folders from API
-    const { data: gmFolders, isLoading: gmLoading } = useGrandmasterFolders();
+    const params = useLocalSearchParams<{ whitePlayer?: string; blackPlayer?: string }>();
 
     // Upload mode toggle
     const [uploadMode, setUploadMode] = useState<UploadMode>("local");
@@ -43,14 +39,12 @@ export default function UploadReelScreen() {
     // Form state
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
-    const [whitePlayer, setWhitePlayer] = useState("");
-    const [blackPlayer, setBlackPlayer] = useState("");
+    const [whitePlayer, setWhitePlayer] = useState(params.whitePlayer || "");
+    const [blackPlayer, setBlackPlayer] = useState(params.blackPlayer || "");
+    const [eventName, setEventName] = useState("");
+    const [year, setYear] = useState("");
     const [difficulty, setDifficulty] = useState("intermediate");
     const [tags, setTags] = useState("");
-
-    // Folder state - pre-select if grandmaster param passed
-    const [folder, setFolder] = useState<"random" | "grandmaster">(params.grandmaster ? "grandmaster" : "random");
-    const [selectedGrandmaster, setSelectedGrandmaster] = useState<string | null>(params.grandmaster || null);
 
     // Video source
     const [videoUri, setVideoUri] = useState<string | null>(null);
@@ -89,9 +83,13 @@ export default function UploadReelScreen() {
             return;
         }
 
-        // Validate grandmaster selection if folder is grandmaster
-        if (folder === "grandmaster" && !selectedGrandmaster) {
-            Alert.alert("Error", "Please select a Grandmaster for this reel.");
+        // Validate player names if provided (game categorization is optional but encouraged)
+        if (whitePlayer && !blackPlayer) {
+            Alert.alert("Error", "Please enter both White and Black player names for game categorization.");
+            return;
+        }
+        if (blackPlayer && !whitePlayer) {
+            Alert.alert("Error", "Please enter both White and Black player names for game categorization.");
             return;
         }
 
@@ -122,6 +120,7 @@ export default function UploadReelScreen() {
             const tagsArray = tags.split(",").map((t) => t.trim()).filter(Boolean);
 
             // Create reel data - match the schema structure
+            // If white and black players are provided, game will be auto-created on backend
             const reelData = {
                 adminId: "admin",
                 videoData: {
@@ -134,10 +133,16 @@ export default function UploadReelScreen() {
                         description,
                         tags: tagsArray.length > 0 ? tagsArray : ["chess"],
                         difficulty,
+                        // Include player names for game categorization
+                        whitePlayer: whitePlayer || null,
+                        blackPlayer: blackPlayer || null,
                     },
                     status: "published",
-                    folder,
-                    grandmaster: folder === "grandmaster" ? selectedGrandmaster : null,
+                    // Game info for auto-creation
+                    whitePlayer: whitePlayer || null,
+                    blackPlayer: blackPlayer || null,
+                    event: eventName || null,
+                    year: year ? parseInt(year) : null,
                 },
             };
 
@@ -356,81 +361,64 @@ export default function UploadReelScreen() {
                     />
                 </View>
 
-                {/* Folder Selection */}
-                <Text style={styles.label}>Save to Folder *</Text>
-                <View style={styles.folderContainer}>
-                    <TouchableOpacity
-                        style={[
-                            styles.folderOption,
-                            folder === "random" && styles.folderOptionActive,
-                        ]}
-                        onPress={() => {
-                            setFolder("random");
-                            setSelectedGrandmaster(null);
-                            Haptics.selectionAsync();
-                        }}
-                    >
-                        <FolderOpen size={18} color={folder === "random" ? "#fff" : colors.text.muted} />
-                        <Text style={[styles.folderText, folder === "random" && styles.folderTextActive]}>
-                            Random Games
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[
-                            styles.folderOption,
-                            folder === "grandmaster" && styles.folderOptionActive,
-                        ]}
-                        onPress={() => {
-                            setFolder("grandmaster");
-                            Haptics.selectionAsync();
-                        }}
-                    >
-                        <User size={18} color={folder === "grandmaster" ? "#fff" : colors.text.muted} />
-                        <Text style={[styles.folderText, folder === "grandmaster" && styles.folderTextActive]}>
-                            Grand Master
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Grandmaster Picker - only show when folder is grandmaster */}
-                {folder === "grandmaster" && (
-                    <View style={styles.grandmasterSection}>
-                        <Text style={styles.label}>Select Grand Master *</Text>
-                        {gmLoading ? (
-                            <ActivityIndicator color={colors.accent.purple} style={{ padding: 20 }} />
-                        ) : (gmFolders && gmFolders.length > 0) ? (
-                            <View style={styles.grandmasterGrid}>
-                                {gmFolders.map((gm: GrandmasterFolder) => (
-                                    <TouchableOpacity
-                                        key={gm._id}
-                                        style={[
-                                            styles.grandmasterChip,
-                                            selectedGrandmaster === gm.name && styles.grandmasterChipActive,
-                                        ]}
-                                        onPress={() => {
-                                            setSelectedGrandmaster(gm.name);
-                                            Haptics.selectionAsync();
-                                        }}
-                                    >
-                                        <Text
-                                            style={[
-                                                styles.grandmasterChipText,
-                                                selectedGrandmaster === gm.name && styles.grandmasterChipTextActive,
-                                            ]}
-                                            numberOfLines={1}
-                                        >
-                                            {gm.name}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        ) : (
-                            <Text style={{ color: colors.text.muted, textAlign: "center", padding: 20 }}>
-                                No grandmaster folders yet. Create one from the dashboard.
-                            </Text>
-                        )}
+                {/* Game Info Section */}
+                <View style={styles.gameInfoSection}>
+                    <View style={styles.gameInfoHeader}>
+                        <Gamepad2 size={20} color={colors.accent.cyan} />
+                        <Text style={styles.gameInfoTitle}>Game Categorization (Optional)</Text>
                     </View>
-                )}
+                    <Text style={styles.gameInfoSubtitle}>
+                        Add player names to categorize this reel under a specific game matchup
+                    </Text>
+
+                    <View style={styles.playersRow}>
+                        <View style={styles.playerInputContainer}>
+                            <Text style={styles.playerLabel}>White Player</Text>
+                            <TextInput
+                                style={styles.playerInput}
+                                placeholder="e.g. Magnus Carlsen"
+                                placeholderTextColor={colors.text.muted}
+                                value={whitePlayer}
+                                onChangeText={setWhitePlayer}
+                            />
+                        </View>
+                        <Text style={styles.vsText}>vs</Text>
+                        <View style={styles.playerInputContainer}>
+                            <Text style={styles.playerLabel}>Black Player</Text>
+                            <TextInput
+                                style={styles.playerInput}
+                                placeholder="e.g. Hikaru Nakamura"
+                                placeholderTextColor={colors.text.muted}
+                                value={blackPlayer}
+                                onChangeText={setBlackPlayer}
+                            />
+                        </View>
+                    </View>
+
+                    <View style={styles.eventRow}>
+                        <View style={{ flex: 2 }}>
+                            <Text style={styles.playerLabel}>Event (Optional)</Text>
+                            <TextInput
+                                style={styles.playerInput}
+                                placeholder="e.g. World Championship"
+                                placeholderTextColor={colors.text.muted}
+                                value={eventName}
+                                onChangeText={setEventName}
+                            />
+                        </View>
+                        <View style={{ flex: 1, marginLeft: 12 }}>
+                            <Text style={styles.playerLabel}>Year</Text>
+                            <TextInput
+                                style={styles.playerInput}
+                                placeholder="2024"
+                                placeholderTextColor={colors.text.muted}
+                                value={year}
+                                onChangeText={setYear}
+                                keyboardType="numeric"
+                            />
+                        </View>
+                    </View>
+                </View>
 
                 {/* Upload Button */}
                 <TouchableOpacity
@@ -628,61 +616,65 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "bold",
     },
-    folderContainer: {
-        flexDirection: "row",
-        gap: 12,
+    // Game Info Section styles
+    gameInfoSection: {
+        backgroundColor: colors.background.secondary,
+        borderRadius: 16,
+        padding: 16,
         marginBottom: 20,
+        borderWidth: 1,
+        borderColor: "rgba(255,255,255,0.1)",
     },
-    folderOption: {
-        flex: 1,
+    gameInfoHeader: {
         flexDirection: "row",
         alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        padding: 14,
-        borderRadius: 12,
-        backgroundColor: colors.background.secondary,
-        borderWidth: 1,
-        borderColor: "rgba(255,255,255,0.1)",
+        gap: 10,
+        marginBottom: 8,
     },
-    folderOptionActive: {
-        backgroundColor: colors.accent.purple,
-        borderColor: colors.accent.purple,
-    },
-    folderText: {
-        color: colors.text.muted,
-        fontSize: 14,
+    gameInfoTitle: {
+        color: colors.text.primary,
+        fontSize: 16,
         fontWeight: "600",
     },
-    folderTextActive: {
-        color: "#fff",
-    },
-    grandmasterSection: {
-        marginBottom: 20,
-    },
-    grandmasterGrid: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 10,
-    },
-    grandmasterChip: {
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        borderRadius: 20,
-        backgroundColor: colors.background.secondary,
-        borderWidth: 1,
-        borderColor: "rgba(255,255,255,0.1)",
-    },
-    grandmasterChipActive: {
-        backgroundColor: colors.accent.cyan,
-        borderColor: colors.accent.cyan,
-    },
-    grandmasterChipText: {
+    gameInfoSubtitle: {
         color: colors.text.muted,
         fontSize: 13,
-        fontWeight: "600",
+        marginBottom: 16,
     },
-    grandmasterChipTextActive: {
-        color: colors.background.primary,
+    playersRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginBottom: 12,
+    },
+    playerInputContainer: {
+        flex: 1,
+    },
+    playerLabel: {
+        color: colors.text.secondary,
+        fontSize: 12,
+        fontWeight: "600",
+        marginBottom: 6,
+    },
+    playerInput: {
+        backgroundColor: colors.background.primary,
+        borderRadius: 8,
+        padding: 12,
+        color: colors.text.primary,
+        fontSize: 14,
+        borderWidth: 1,
+        borderColor: "rgba(255,255,255,0.1)",
+    },
+    vsText: {
+        color: colors.accent.cyan,
+        fontSize: 14,
+        fontWeight: "700",
+        marginHorizontal: 8,
+        marginTop: 20,
+    },
+    eventRow: {
+        flexDirection: "row",
+        gap: 12,
     },
 });
+

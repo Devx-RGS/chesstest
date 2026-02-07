@@ -13,12 +13,13 @@ import uploadRoutes from "./routes/uploadRoute.js";
 
 const app = express();
 
-// Middleware
+// CORS Configuration - restrict in production
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [];
 app.use(cors({
-    origin: true,
+    origin: allowedOrigins.length > 0 ? allowedOrigins : true, // Restrict if env var set
     credentials: true,
 }));
-app.use(express.json());
+app.use(express.json({ limit: "10mb" })); // Add body size limit
 
 // Serve static files (videos, images) from /public folder
 app.use('/public', express.static('public'));

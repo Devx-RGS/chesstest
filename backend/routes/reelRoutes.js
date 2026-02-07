@@ -7,9 +7,6 @@ import {
     getReelsByGame,
     viewReel,
     getReelStats,
-    getPublicFolderStats,
-    getPublicGrandmasters,
-    getReelsByFolder,
 } from "../controllers/reelController.js";
 import {
     likeReel,
@@ -33,15 +30,6 @@ router.get("/", getFeed);
 
 // GET /reels/random - Get random reels (for "Discover" section)
 router.get("/random", getRandomReels);
-
-// GET /reels/folders - Get folder stats (random vs grandmaster counts)
-router.get("/folders", getPublicFolderStats);
-
-// GET /reels/grandmasters - Get list of grandmasters with reel counts
-router.get("/grandmasters", getPublicGrandmasters);
-
-// GET /reels/by-folder - Get reels by folder and optionally grandmaster
-router.get("/by-folder", getReelsByFolder);
 
 // GET /reels/games - Get list of available games (for game selection UI)
 router.get("/games", getAvailableGames);

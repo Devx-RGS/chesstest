@@ -87,16 +87,23 @@ export function useReel(reelId: string) {
 
 // Like a reel with optimistic update
 export function useLikeReel() {
+    const queryClient = useQueryClient();
+
     return useMutation({
         mutationFn: async ({ reelId, action }: { reelId: string; action: "like" | "unlike" }) => {
             const response = await apiClient.patch(`/reels/${reelId}/like`, { action });
             return response.data;
         },
         // Note: Optimistic updates are handled by the Zustand store in reels.tsx
-        // We do NOT update React Query cache here to avoid double-updates and infinite loops
         onError: (err) => {
             console.error("Like mutation failed:", err);
             // Store rollback is handled by the component if needed
+        },
+        // Invalidate queries to sync like counts across All Reels and Games views
+        onSettled: () => {
+            // Invalidate all reels-related queries to ensure consistency
+            queryClient.invalidateQueries({ queryKey: ["reels"] });
+            queryClient.invalidateQueries({ queryKey: ["reels-by-game"] });
         },
     });
 }
@@ -275,64 +282,60 @@ export function getDifficultyColor(difficulty: string): string {
     }
 }
 
-// ============== PUBLIC FOLDER API ==============
+// ============== GAMES API ==============
 
-interface FolderStatsResponse {
+export interface Game {
+    _id: string;
+    displayName: string;
+    whitePlayer: string;
+    blackPlayer: string;
+    event?: string;
+    year?: number;
+    result?: string;
+}
+
+interface GamesResponse {
     success: boolean;
-    folders: {
-        random: number;
-        grandmaster: number;
+    data: Game[];
+    count: number;
+}
+
+interface ReelsByGameResponse {
+    success: boolean;
+    data: Reel[];
+    game: Game;
+    pagination: {
+        currentPage: number;
+        totalPages: number;
+        totalReels: number;
+        hasMore: boolean;
     };
 }
 
-interface PublicGrandmaster {
-    _id: string;
-    name: string;
-    thumbnail: string | null;
-    reelCount: number;
-}
-
-interface GrandmastersResponse {
-    success: boolean;
-    grandmasters: PublicGrandmaster[];
-}
-
-// Get public folder stats
-export function usePublicFolderStats() {
+// Get list of available games
+export function useAvailableGames() {
     return useQuery({
-        queryKey: ["public-folder-stats"],
+        queryKey: ["available-games"],
         queryFn: async () => {
-            const response = await apiClient.get<FolderStatsResponse>("/reels/folders");
-            return response.data.folders;
+            const response = await apiClient.get<GamesResponse>("/reels/games");
+            return response.data.data || [];
         },
         staleTime: 60 * 1000,
     });
 }
 
-// Get public grandmaster list
-export function usePublicGrandmasters() {
+// Get reels for a specific game
+export function useReelsByGame(gameId: string | null) {
     return useQuery({
-        queryKey: ["public-grandmasters"],
+        queryKey: ["reels-by-game", gameId],
         queryFn: async () => {
-            const response = await apiClient.get<GrandmastersResponse>("/reels/grandmasters");
-            return response.data.grandmasters || [];
+            const response = await apiClient.get<ReelsByGameResponse>(`/reels/game/${gameId}`);
+            return {
+                reels: response.data.data || [],
+                game: response.data.game,
+            };
         },
         staleTime: 60 * 1000,
-    });
-}
-
-// Get reels by folder (public)
-export function useReelsByFolder(folder?: string, grandmaster?: string) {
-    return useQuery({
-        queryKey: ["reels-by-folder", folder, grandmaster],
-        queryFn: async () => {
-            let url = "/reels/by-folder?";
-            if (folder) url += `folder=${folder}`;
-            if (grandmaster) url += `&grandmaster=${encodeURIComponent(grandmaster)}`;
-            const response = await apiClient.get<ReelsResponse>(url);
-            return response.data.reels || [];
-        },
-        staleTime: 60 * 1000,
-        enabled: !!folder,
+        enabled: !!gameId,
     });
 }

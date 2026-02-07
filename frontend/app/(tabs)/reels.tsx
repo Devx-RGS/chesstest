@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useFocusEffect } from "expo-router";
 import {
     View,
     FlatList,
@@ -10,15 +11,14 @@ import {
     Share,
     TouchableOpacity,
     ScrollView,
-    Image,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { FolderOpen, User, ArrowLeft, Film } from "lucide-react-native";
+import { Film, ArrowLeft, Gamepad2 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { ReelCard } from "@/components/reels/ReelCard";
 import { CommentsBottomSheet } from "@/components/reels/CommentsBottomSheet";
-import { useReels, useLikeReel, useRecordView, usePublicGrandmasters, useReelsByFolder, useUserLikedReels, useSaveReel, useUserSavedReels } from "@/services/reelApi";
+import { useReels, useLikeReel, useRecordView, useAvailableGames, useReelsByGame, useUserLikedReels, useSaveReel, useUserSavedReels, Game } from "@/services/reelApi";
 import { useReelStore } from "@/stores/reelStore";
 import { useAuthStore } from "@/stores/authStore";
 import { colors } from "@/constants/themes";
@@ -30,24 +30,21 @@ const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get("window");
 // Generate a unique session ID for guests
 const generateSessionId = () => `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-type FolderType = "all" | "random" | "grandmaster";
+type TabType = "all" | "games";
 
 export default function ReelsScreen() {
     const insets = useSafeAreaInsets();
 
-    // Folder state
-    const [selectedFolder, setSelectedFolder] = useState<FolderType>("all");
-    const [selectedGrandmaster, setSelectedGrandmaster] = useState<string | null>(null);
+    // Tab state - simplified to just "all" and "games"
+    const [selectedTab, setSelectedTab] = useState<TabType>("all");
+    const [selectedGame, setSelectedGame] = useState<string | null>(null);
 
-    // Fetch grandmasters for picker
-    const { data: grandmasters } = usePublicGrandmasters();
+    // Fetch games for picker
+    const { data: games } = useAvailableGames();
 
-    // Fetch reels based on folder selection
+    // Fetch reels based on selection
     const { data: fetchedReels, isLoading, error, refetch, isRefetching } = useReels();
-    const { data: folderReels, isLoading: folderLoading, refetch: refetchFolder } = useReelsByFolder(
-        selectedFolder === "all" ? undefined : selectedFolder,
-        selectedGrandmaster || undefined
-    );
+    const { data: gameReelsData, isLoading: gameLoading, refetch: refetchGame } = useReelsByGame(selectedGame);
 
     // Fetch liked reels for authenticated users
     const { data: userLikedReels } = useUserLikedReels();
@@ -61,6 +58,17 @@ export default function ReelsScreen() {
     const [currentVisibleIndex, setCurrentVisibleIndex] = useState(0);
     const [commentsReelId, setCommentsReelId] = useState<string | null>(null);
     const [isImmersive, setIsImmersive] = useState(false);
+    const [screenFocused, setScreenFocused] = useState(true);
+
+    // Track screen focus to pause videos when navigating away
+    useFocusEffect(
+        useCallback(() => {
+            setScreenFocused(true);
+            return () => {
+                setScreenFocused(false);
+            };
+        }, [])
+    );
 
     // Track which reels have been viewed this session (prevents duplicate API calls)
     const viewedReelsRef = useRef<Set<string>>(new Set());
@@ -82,37 +90,43 @@ export default function ReelsScreen() {
     const isLiked = useReelStore((s) => s.isLiked);
     const isSaved = useReelStore((s) => s.isSaved);
     const incrementViews = useReelStore((s) => s.incrementViews);
+    // Get raw Sets to force re-render when liked/saved state changes
+    const likedReelsSet = useReelStore((s) => s.likedReels);
+    const savedReelsSet = useReelStore((s) => s.savedReels);
 
     const viewabilityConfig = useRef({
         itemVisiblePercentThreshold: 50,
     }).current;
 
     // Determine which reels to show
-    const displayReels = selectedFolder === "all"
+    const displayReels = selectedTab === "all"
         ? (storeReels.length > 0 ? storeReels : fetchedReels)
-        : folderReels;
+        : gameReelsData?.reels;
 
     // Sync liked reels from server for authenticated users
     useEffect(() => {
-        if (userLikedReels && userLikedReels.length > 0) {
-            initLikedReels(userLikedReels);
+        // Always reinitialize liked reels from server data, even if empty
+        // This ensures old likes are cleared when switching users
+        if (userLikedReels !== undefined) {
+            initLikedReels(userLikedReels || []);
         }
     }, [userLikedReels, initLikedReels]);
 
     // Sync saved reels from server for authenticated users
     const initSavedReels = useReelStore((s) => s.initSavedReels);
     useEffect(() => {
-        if (userSavedReels && userSavedReels.length > 0) {
-            initSavedReels(userSavedReels);
+        // Always reinitialize saved reels from server data, even if empty
+        if (userSavedReels !== undefined) {
+            initSavedReels(userSavedReels || []);
         }
     }, [userSavedReels, initSavedReels]);
 
     // Sync fetched reels to store
     useEffect(() => {
-        if (fetchedReels && fetchedReels.length > 0 && selectedFolder === "all") {
+        if (fetchedReels && fetchedReels.length > 0 && selectedTab === "all") {
             setReels(fetchedReels);
         }
-    }, [fetchedReels, setReels, selectedFolder]);
+    }, [fetchedReels, setReels, selectedTab]);
 
     const onViewableItemsChanged = useCallback(
         ({ viewableItems }: { viewableItems: Array<{ index: number | null; item: Reel }> }) => {
@@ -203,29 +217,29 @@ export default function ReelsScreen() {
         }
     }, []);
 
-    const handleFolderChange = (folder: FolderType) => {
+    const handleTabChange = (tab: TabType) => {
         Haptics.selectionAsync();
-        setSelectedFolder(folder);
-        setSelectedGrandmaster(null);
+        setSelectedTab(tab);
+        setSelectedGame(null);
         setCurrentVisibleIndex(0);
     };
 
-    const handleSelectGrandmaster = (name: string) => {
+    const handleSelectGame = (gameId: string) => {
         Haptics.selectionAsync();
-        setSelectedGrandmaster(name);
+        setSelectedGame(gameId);
         setCurrentVisibleIndex(0);
     };
 
-    const handleBackToGmList = () => {
+    const handleBackToGameList = () => {
         Haptics.selectionAsync();
-        setSelectedGrandmaster(null);
+        setSelectedGame(null);
     };
 
     const renderItem = useCallback(
         ({ item, index }: { item: Reel; index: number }) => (
             <ReelCard
                 reel={item}
-                isVisible={index === currentVisibleIndex}
+                isVisible={index === currentVisibleIndex && screenFocused}
                 isLiked={isLiked(item._id)}
                 isSaved={isSaved(item._id)}
                 onLike={() => handleLike(item._id)}
@@ -236,10 +250,11 @@ export default function ReelsScreen() {
                 onImmersiveChange={setIsImmersive}
             />
         ),
-        [currentVisibleIndex, isLiked, isSaved, handleLike, handleSave, handleComment, handleShare, handleView]
+        // Include likedReelsSet/savedReelsSet to force re-render when like state changes
+        [currentVisibleIndex, screenFocused, isLiked, isSaved, likedReelsSet, savedReelsSet, handleLike, handleSave, handleComment, handleShare, handleView]
     );
 
-    const isLoadingReels = selectedFolder === "all" ? isLoading : folderLoading;
+    const isLoadingReels = selectedTab === "all" ? isLoading : gameLoading;
 
     if (isLoadingReels && !displayReels?.length) {
         return (
@@ -250,7 +265,7 @@ export default function ReelsScreen() {
         );
     }
 
-    if (error && selectedFolder === "all") {
+    if (error && selectedTab === "all") {
         return (
             <View style={styles.errorContainer}>
                 <Text style={styles.errorText}>Failed to load reels</Text>
@@ -259,89 +274,56 @@ export default function ReelsScreen() {
         );
     }
 
-    // Show grandmaster selection grid when GM folder selected but no GM chosen
-    if (selectedFolder === "grandmaster" && !selectedGrandmaster) {
+    // Show game selection grid when Games tab selected but no game chosen
+    if (selectedTab === "games" && !selectedGame) {
         return (
             <View style={styles.container}>
                 <StatusBar style="light" />
                 <LinearGradient
                     colors={[colors.background.primary, colors.background.secondary]}
-                    style={styles.gmListContainer}
+                    style={styles.gameListContainer}
                 >
-                    {/* Header */}
-                    <View style={[styles.gmListHeader, { paddingTop: insets.top + 10 }]}>
-                        <TouchableOpacity onPress={() => handleFolderChange("all")} style={styles.backButton}>
+                    {/* Simple Header with back button */}
+                    <View style={[styles.gameListHeader, { paddingTop: insets.top + 10 }]}>
+                        <TouchableOpacity onPress={() => handleTabChange("all")} style={styles.backButton}>
                             <ArrowLeft size={24} color={colors.text.primary} />
                         </TouchableOpacity>
-                        <Text style={styles.gmListTitle}>Grandmaster Games</Text>
+                        <Text style={styles.gameListTitle}>Games</Text>
                         <View style={{ width: 40 }} />
                     </View>
 
-                    {/* Folder tabs */}
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.folderTabs}
-                        style={{ flexGrow: 0, maxHeight: 50, marginBottom: 8 }}
-                    >
-                        <TouchableOpacity
-                            onPress={() => handleFolderChange("all")}
-                            style={styles.folderTab}
-                        >
-                            <Text style={styles.folderTabText}>All Reels</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            onPress={() => handleFolderChange("random")}
-                            style={styles.folderTab}
-                        >
-                            <FolderOpen size={14} color={colors.text.muted} />
-                            <Text style={styles.folderTabText}>Random</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.folderTab, styles.folderTabActive]}
-                        >
-                            <User size={14} color="#fff" />
-                            <Text style={styles.folderTabTextActive}>Grandmasters</Text>
-                        </TouchableOpacity>
-                    </ScrollView>
+                    <Text style={styles.gameListSubtitle}>Select a game to watch reels</Text>
 
-                    <Text style={styles.gmListSubtitle}>Select a Grandmaster to watch their games</Text>
-
-                    {/* Grandmaster Grid */}
-                    <ScrollView contentContainerStyle={styles.gmGrid} showsVerticalScrollIndicator={false}>
-                        {grandmasters?.map((gm) => (
+                    {/* Games Grid */}
+                    <ScrollView contentContainerStyle={styles.gameGrid} showsVerticalScrollIndicator={false}>
+                        {games?.map((game: Game) => (
                             <TouchableOpacity
-                                key={gm._id}
-                                style={styles.gmCard}
-                                onPress={() => handleSelectGrandmaster(gm.name)}
+                                key={game._id}
+                                style={styles.gameCard}
+                                onPress={() => handleSelectGame(game._id)}
                                 activeOpacity={0.8}
                             >
                                 <LinearGradient
                                     colors={[colors.accent.purple + "40", colors.accent.cyan + "20"]}
-                                    style={styles.gmCardGradient}
+                                    style={styles.gameCardGradient}
                                 >
-                                    {gm.thumbnail ? (
-                                        <Image
-                                            source={{ uri: gm.thumbnail }}
-                                            style={styles.gmCardImage}
-                                            resizeMode="cover"
-                                        />
-                                    ) : (
-                                        <User size={32} color={colors.accent.cyan} />
+                                    <Gamepad2 size={28} color={colors.accent.cyan} />
+                                    <Text style={styles.gameCardName} numberOfLines={2}>
+                                        {game.displayName}
+                                    </Text>
+                                    {game.event && (
+                                        <Text style={styles.gameCardEvent} numberOfLines={1}>
+                                            {game.event} {game.year ? `(${game.year})` : ""}
+                                        </Text>
                                     )}
-                                    <Text style={styles.gmCardName} numberOfLines={1}>{gm.name}</Text>
-                                    <View style={styles.gmCardStats}>
-                                        <Film size={12} color={colors.text.muted} />
-                                        <Text style={styles.gmCardCount}>{gm.reelCount} reels</Text>
-                                    </View>
                                 </LinearGradient>
                             </TouchableOpacity>
                         ))}
-                        {(!grandmasters || grandmasters.length === 0) && (
-                            <View style={styles.noGmContainer}>
-                                <User size={48} color={colors.text.muted} />
-                                <Text style={styles.noGmText}>No grandmasters yet</Text>
-                                <Text style={styles.noGmSubtext}>Check back later!</Text>
+                        {(!games || games.length === 0) && (
+                            <View style={styles.noGamesContainer}>
+                                <Gamepad2 size={48} color={colors.text.muted} />
+                                <Text style={styles.noGamesText}>No games yet</Text>
+                                <Text style={styles.noGamesSubtext}>Check back later!</Text>
                             </View>
                         )}
                     </ScrollView>
@@ -354,60 +336,50 @@ export default function ReelsScreen() {
         <View style={styles.container}>
             <StatusBar style="light" />
 
-            {/* Folder Navigation Header */}
+            {/* Tab Navigation Header */}
             {!isImmersive && (
-                <View style={[styles.folderHeader, { paddingTop: insets.top + 8 }]}>
-                    {/* Back button when viewing GM reels */}
-                    {selectedFolder === "grandmaster" && selectedGrandmaster && (
-                        <TouchableOpacity onPress={handleBackToGmList} style={styles.headerBackButton}>
+                <View style={[styles.tabHeader, { paddingTop: insets.top + 8 }]}>
+                    {/* Back button when viewing game reels */}
+                    {selectedTab === "games" && selectedGame && (
+                        <TouchableOpacity onPress={handleBackToGameList} style={styles.headerBackButton}>
                             <ArrowLeft size={20} color={colors.text.primary} />
                         </TouchableOpacity>
                     )}
 
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.folderTabs}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabButtons}>
                         <TouchableOpacity
-                            onPress={() => handleFolderChange("all")}
-                            style={[styles.folderTab, selectedFolder === "all" && styles.folderTabActive]}
+                            onPress={() => handleTabChange("all")}
+                            style={[styles.tabButton, selectedTab === "all" && styles.tabButtonActive]}
                         >
-                            <Text style={[styles.folderTabText, selectedFolder === "all" && styles.folderTabTextActive]}>
+                            <Text style={[styles.tabButtonText, selectedTab === "all" && styles.tabButtonTextActive]}>
                                 All Reels
                             </Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            onPress={() => handleFolderChange("random")}
-                            style={[styles.folderTab, selectedFolder === "random" && styles.folderTabActive]}
+                            onPress={() => handleTabChange("games")}
+                            style={[styles.tabButton, selectedTab === "games" && styles.tabButtonActive]}
                         >
-                            <FolderOpen size={14} color={selectedFolder === "random" ? "#fff" : colors.text.muted} />
-                            <Text style={[styles.folderTabText, selectedFolder === "random" && styles.folderTabTextActive]}>
-                                Random
-                            </Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            onPress={() => handleFolderChange("grandmaster")}
-                            style={[styles.folderTab, selectedFolder === "grandmaster" && styles.folderTabActive]}
-                        >
-                            <User size={14} color={selectedFolder === "grandmaster" ? "#fff" : colors.text.muted} />
-                            <Text style={[styles.folderTabText, selectedFolder === "grandmaster" && styles.folderTabTextActive]}>
-                                Grandmasters
+                            <Gamepad2 size={14} color={selectedTab === "games" ? "#fff" : colors.text.muted} />
+                            <Text style={[styles.tabButtonText, selectedTab === "games" && styles.tabButtonTextActive]}>
+                                Games
                             </Text>
                         </TouchableOpacity>
                     </ScrollView>
                 </View>
             )}
 
-            {/* Show selected grandmaster name as subtitle */}
-            {!isImmersive && selectedFolder === "grandmaster" && selectedGrandmaster && (
-                <View style={styles.gmSubtitleContainer}>
-                    <Text style={styles.gmSubtitle}>Viewing: {selectedGrandmaster}</Text>
+            {/* Show selected game name as subtitle */}
+            {!isImmersive && selectedTab === "games" && selectedGame && gameReelsData?.game && (
+                <View style={styles.gameSubtitleContainer}>
+                    <Text style={styles.gameSubtitle}>Viewing: {gameReelsData.game.displayName}</Text>
                 </View>
             )}
 
             {(!displayReels || displayReels.length === 0) ? (
                 <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyText}>No reels in this folder</Text>
-                    <Text style={styles.emptySubtext}>Try selecting a different folder</Text>
+                    <Text style={styles.emptyText}>No reels found</Text>
+                    <Text style={styles.emptySubtext}>Try selecting a different game</Text>
                 </View>
             ) : (
                 <FlatList
@@ -429,7 +401,7 @@ export default function ReelsScreen() {
                     refreshControl={
                         <RefreshControl
                             refreshing={isRefetching}
-                            onRefresh={selectedFolder === "all" ? refetch : refetchFolder}
+                            onRefresh={selectedTab === "all" ? refetch : refetchGame}
                             tintColor={colors.accent.cyan}
                         />
                     }
@@ -458,7 +430,7 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: colors.background.primary,
     },
-    folderHeader: {
+    tabHeader: {
         position: "absolute",
         top: 0,
         left: 0,
@@ -467,12 +439,12 @@ const styles = StyleSheet.create({
         backgroundColor: "rgba(0,0,0,0.7)",
         paddingBottom: 10,
     },
-    folderTabs: {
+    tabButtons: {
         flexDirection: "row",
         paddingHorizontal: 16,
         gap: 10,
     },
-    folderTab: {
+    tabButton: {
         flexDirection: "row",
         alignItems: "center",
         gap: 6,
@@ -482,77 +454,16 @@ const styles = StyleSheet.create({
         backgroundColor: "rgba(255,255,255,0.1)",
         height: 36,
     },
-    folderTabActive: {
+    tabButtonActive: {
         backgroundColor: colors.accent.purple,
     },
-    folderTabText: {
+    tabButtonText: {
         color: colors.text.muted,
         fontSize: 13,
         fontWeight: "600",
     },
-    folderTabTextActive: {
+    tabButtonTextActive: {
         color: "#fff",
-    },
-    gmPickerButton: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        marginHorizontal: 16,
-        marginTop: 10,
-        padding: 12,
-        backgroundColor: "rgba(255,255,255,0.1)",
-        borderRadius: 10,
-    },
-    gmPickerText: {
-        color: colors.text.primary,
-        fontSize: 14,
-    },
-    gmDropdown: {
-        position: "absolute",
-        left: 16,
-        right: 16,
-        zIndex: 200,
-        backgroundColor: colors.background.secondary,
-        borderRadius: 12,
-        padding: 12,
-        maxHeight: 300,
-        elevation: 10,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-    },
-    gmDropdownHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 12,
-        paddingBottom: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: "rgba(255,255,255,0.1)",
-    },
-    gmDropdownTitle: {
-        color: colors.text.primary,
-        fontSize: 16,
-        fontWeight: "600",
-    },
-    gmOption: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: 12,
-        borderRadius: 8,
-    },
-    gmOptionActive: {
-        backgroundColor: "rgba(123, 47, 247, 0.2)",
-    },
-    gmOptionText: {
-        color: colors.text.primary,
-        fontSize: 14,
-    },
-    gmOptionCount: {
-        color: colors.text.muted,
-        fontSize: 12,
     },
     loadingContainer: {
         flex: 1,
@@ -597,11 +508,11 @@ const styles = StyleSheet.create({
         color: colors.text.muted,
         fontSize: 14,
     },
-    // GM List View styles
-    gmListContainer: {
+    // Game List View styles
+    gameListContainer: {
         flex: 1,
     },
-    gmListHeader: {
+    gameListHeader: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
@@ -616,74 +527,63 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
     },
-    gmListTitle: {
+    gameListTitle: {
         color: colors.text.primary,
         fontSize: 20,
         fontWeight: "700",
     },
-    gmListSubtitle: {
+    gameListSubtitle: {
         color: colors.text.muted,
         fontSize: 14,
         textAlign: "center",
         marginTop: 4,
         marginBottom: 12,
     },
-    gmGrid: {
+    gameGrid: {
         flexDirection: "row",
         flexWrap: "wrap",
         paddingHorizontal: 12,
         gap: 12,
         paddingBottom: 100,
     },
-    gmCard: {
+    gameCard: {
         width: (SCREEN_WIDTH - 48) / 2,
         borderRadius: 16,
         overflow: "hidden",
     },
-    gmCardGradient: {
+    gameCardGradient: {
         padding: 20,
         alignItems: "center",
         justifyContent: "center",
         minHeight: 140,
     },
-    gmCardImage: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        borderWidth: 2,
-        borderColor: colors.accent.cyan,
-    },
-    gmCardName: {
+    gameCardName: {
         color: colors.text.primary,
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: "600",
         marginTop: 12,
         textAlign: "center",
     },
-    gmCardStats: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 4,
-        marginTop: 8,
-    },
-    gmCardCount: {
+    gameCardEvent: {
         color: colors.text.muted,
-        fontSize: 12,
+        fontSize: 11,
+        marginTop: 4,
+        textAlign: "center",
     },
-    noGmContainer: {
+    noGamesContainer: {
         flex: 1,
         width: SCREEN_WIDTH - 32,
         alignItems: "center",
         justifyContent: "center",
         paddingVertical: 60,
     },
-    noGmText: {
+    noGamesText: {
         color: colors.text.primary,
         fontSize: 18,
         fontWeight: "600",
         marginTop: 16,
     },
-    noGmSubtext: {
+    noGamesSubtext: {
         color: colors.text.muted,
         fontSize: 14,
         marginTop: 4,
@@ -693,12 +593,12 @@ const styles = StyleSheet.create({
         marginRight: 4,
         padding: 4,
     },
-    gmSubtitleContainer: {
+    gameSubtitleContainer: {
         paddingHorizontal: 16,
         paddingVertical: 8,
         backgroundColor: colors.glass.light,
     },
-    gmSubtitle: {
+    gameSubtitle: {
         color: colors.accent.cyan,
         fontSize: 14,
         fontWeight: "600",

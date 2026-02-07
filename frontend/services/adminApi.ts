@@ -113,6 +113,7 @@ export function usePostReel() {
             queryClient.invalidateQueries({ queryKey: ["admin-reels"] });
             queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
             queryClient.invalidateQueries({ queryKey: ["reels"] });
+            queryClient.invalidateQueries({ queryKey: ["available-games"] });
         },
     });
 }
