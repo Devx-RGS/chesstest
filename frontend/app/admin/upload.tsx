@@ -12,7 +12,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
-import { Upload, Link, Check, ArrowLeft, Film, Hash, Gamepad2 } from "lucide-react-native";
+import { Upload, Link, Check, ArrowLeft, Film, Hash, Gamepad2, Zap, ChevronDown, ChevronUp, Star } from "lucide-react-native";
 import { colors } from "@/constants/themes";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { apiClient } from "@/services/api";
@@ -45,6 +45,14 @@ export default function UploadReelScreen() {
     const [year, setYear] = useState("");
     const [difficulty, setDifficulty] = useState("intermediate");
     const [tags, setTags] = useState("");
+
+    // Interactive chess challenge state
+    const [interactiveEnabled, setInteractiveEnabled] = useState(false);
+    const [chessFen, setChessFen] = useState("");
+    const [triggerTimestamp, setTriggerTimestamp] = useState("");
+    const [playerColor, setPlayerColor] = useState<'w' | 'b'>('w');
+    const [solutionMoves, setSolutionMoves] = useState("");
+    const [challengeRating, setChallengeRating] = useState(3);
 
     // Video source
     const [videoUri, setVideoUri] = useState<string | null>(null);
@@ -119,6 +127,15 @@ export default function UploadReelScreen() {
             // Prepare tags array
             const tagsArray = tags.split(",").map((t) => t.trim()).filter(Boolean);
 
+            // Build interactive object only if enabled and FEN is provided
+            const interactiveData = interactiveEnabled && chessFen.trim() ? {
+                chessFen: chessFen.trim(),
+                triggerTimestamp: triggerTimestamp ? parseFloat(triggerTimestamp) : null,
+                playerColor: playerColor,
+                solutionMoves: solutionMoves ? solutionMoves.split(",").map(m => m.trim()).filter(Boolean) : [],
+                difficultyRating: challengeRating,
+            } : undefined;
+
             // Create reel data - match the schema structure
             // If white and black players are provided, game will be auto-created on backend
             const reelData = {
@@ -137,6 +154,7 @@ export default function UploadReelScreen() {
                         whitePlayer: whitePlayer || null,
                         blackPlayer: blackPlayer || null,
                     },
+                    interactive: interactiveData,
                     status: "published",
                     // Game info for auto-creation
                     whitePlayer: whitePlayer || null,
@@ -418,6 +436,127 @@ export default function UploadReelScreen() {
                             />
                         </View>
                     </View>
+                </View>
+
+                {/* Interactive Chess Challenge Section */}
+                <View style={styles.gameInfoSection}>
+                    <TouchableOpacity
+                        style={styles.gameInfoHeader}
+                        onPress={() => {
+                            setInteractiveEnabled(!interactiveEnabled);
+                            Haptics.selectionAsync();
+                        }}
+                        activeOpacity={0.7}
+                    >
+                        <Zap size={20} color={interactiveEnabled ? colors.warning : colors.text.muted} />
+                        <Text style={[styles.gameInfoTitle, interactiveEnabled && { color: colors.warning }]}>
+                            Interactive Chess Challenge
+                        </Text>
+                        <View style={{ flex: 1 }} />
+                        {interactiveEnabled ? (
+                            <ChevronUp size={20} color={colors.warning} />
+                        ) : (
+                            <ChevronDown size={20} color={colors.text.muted} />
+                        )}
+                    </TouchableOpacity>
+                    <Text style={styles.gameInfoSubtitle}>
+                        Enable to pause the video and show an interactive chess board
+                    </Text>
+
+                    {interactiveEnabled && (
+                        <View>
+                            {/* FEN String */}
+                            <Text style={styles.playerLabel}>FEN Position *</Text>
+                            <TextInput
+                                style={styles.playerInput}
+                                placeholder="e.g. r1bqkbnr/pppppppp/2n5/..."
+                                placeholderTextColor={colors.text.muted}
+                                value={chessFen}
+                                onChangeText={setChessFen}
+                                autoCapitalize="none"
+                            />
+
+                            {/* Trigger Timestamp */}
+                            <View style={{ marginTop: 12 }}>
+                                <Text style={styles.playerLabel}>Trigger Timestamp (seconds)</Text>
+                                <TextInput
+                                    style={styles.playerInput}
+                                    placeholder="e.g. 10"
+                                    placeholderTextColor={colors.text.muted}
+                                    value={triggerTimestamp}
+                                    onChangeText={setTriggerTimestamp}
+                                    keyboardType="numeric"
+                                />
+                            </View>
+
+                            {/* Player Color */}
+                            <View style={{ marginTop: 12 }}>
+                                <Text style={styles.playerLabel}>Player Color</Text>
+                                <View style={styles.difficultyContainer}>
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.difficultyOption,
+                                            playerColor === 'w' && { backgroundColor: '#f0f0f0', borderColor: '#f0f0f0' },
+                                        ]}
+                                        onPress={() => { setPlayerColor('w'); Haptics.selectionAsync(); }}
+                                    >
+                                        <Text style={[
+                                            styles.difficultyText,
+                                            playerColor === 'w' && { color: '#000' },
+                                        ]}>♔ WHITE</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.difficultyOption,
+                                            playerColor === 'b' && { backgroundColor: '#333', borderColor: '#555' },
+                                        ]}
+                                        onPress={() => { setPlayerColor('b'); Haptics.selectionAsync(); }}
+                                    >
+                                        <Text style={[
+                                            styles.difficultyText,
+                                            playerColor === 'b' && { color: '#fff' },
+                                        ]}>♚ BLACK</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+
+                            {/* Challenge Difficulty Rating */}
+                            <View style={{ marginTop: 4 }}>
+                                <Text style={styles.playerLabel}>Challenge Difficulty (1–5)</Text>
+                                <View style={styles.difficultyContainer}>
+                                    {[1, 2, 3, 4, 5].map((n) => (
+                                        <TouchableOpacity
+                                            key={n}
+                                            style={[
+                                                styles.difficultyOption,
+                                                challengeRating >= n && { backgroundColor: colors.warning, borderColor: colors.warning },
+                                            ]}
+                                            onPress={() => { setChallengeRating(n); Haptics.selectionAsync(); }}
+                                        >
+                                            <Star
+                                                size={16}
+                                                color={challengeRating >= n ? '#fff' : colors.text.muted}
+                                                fill={challengeRating >= n ? '#fff' : 'none'}
+                                            />
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
+
+                            {/* Solution Moves (optional) */}
+                            <View style={{ marginTop: 12 }}>
+                                <Text style={styles.playerLabel}>Solution Moves (optional, comma-separated UCI)</Text>
+                                <TextInput
+                                    style={styles.playerInput}
+                                    placeholder="e.g. e7e5, d2d4, g8f6"
+                                    placeholderTextColor={colors.text.muted}
+                                    value={solutionMoves}
+                                    onChangeText={setSolutionMoves}
+                                    autoCapitalize="none"
+                                />
+                            </View>
+                        </View>
+                    )}
                 </View>
 
                 {/* Upload Button */}

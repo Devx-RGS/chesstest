@@ -49,6 +49,13 @@ export const uploadVideo = async (req, res) => {
                 difficulty: videoData?.content?.difficulty || "beginner",
             },
             gameId: gameId,
+            interactive: {
+                chessFen: videoData?.interactive?.chessFen || null,
+                triggerTimestamp: videoData?.interactive?.triggerTimestamp || null,
+                playerColor: videoData?.interactive?.playerColor || null,
+                solutionMoves: videoData?.interactive?.solutionMoves || [],
+                difficultyRating: videoData?.interactive?.difficultyRating || null,
+            },
             status: videoData?.status || "draft",
         });
 
@@ -83,6 +90,11 @@ export const updateVideo = async (req, res) => {
                     "content.tags": updatedData?.content?.tags,
                     "content.difficulty": updatedData?.content?.difficulty,
                     gameId: updatedData?.gameId,
+                    "interactive.chessFen": updatedData?.interactive?.chessFen,
+                    "interactive.triggerTimestamp": updatedData?.interactive?.triggerTimestamp,
+                    "interactive.playerColor": updatedData?.interactive?.playerColor,
+                    "interactive.solutionMoves": updatedData?.interactive?.solutionMoves,
+                    "interactive.difficultyRating": updatedData?.interactive?.difficultyRating,
                     status: updatedData?.status,
                 },
             },

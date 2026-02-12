@@ -8,6 +8,7 @@ import { Audio } from "expo-av";
 import { queryClient } from "@/services/api";
 import { colors } from "@/constants/themes";
 import { useAuthStore } from "@/stores/authStore";
+import EngineService from "@/services/EngineService";
 
 // Configure audio mode for video playback
 async function configureAudio() {
@@ -64,6 +65,8 @@ export default function RootLayout() {
                         translucent={true}
                         backgroundColor="transparent"
                     />
+                    {/* Hidden Stockfish engine WebView — mounted globally */}
+                    <EngineService />
                     <RouteGuard>
                         <Stack
                             screenOptions={{

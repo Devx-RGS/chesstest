@@ -34,6 +34,13 @@ interface PostReelData {
     difficulty?: "beginner" | "intermediate" | "advanced";
     folder?: "random" | "grandmaster";
     grandmaster?: string | null;
+    interactive?: {
+        chessFen?: string;
+        triggerTimestamp?: number;
+        playerColor?: 'w' | 'b';
+        solutionMoves?: string[];
+        difficultyRating?: number;
+    };
 }
 
 // Fetch all reels for admin (including drafts)
@@ -100,6 +107,13 @@ export function usePostReel() {
                         difficulty: reelData.difficulty || "beginner",
                     },
                     gameId: null,
+                    interactive: reelData.interactive ? {
+                        chessFen: reelData.interactive.chessFen || null,
+                        triggerTimestamp: reelData.interactive.triggerTimestamp || null,
+                        playerColor: reelData.interactive.playerColor || null,
+                        solutionMoves: reelData.interactive.solutionMoves || [],
+                        difficultyRating: reelData.interactive.difficultyRating || null,
+                    } : undefined,
                     status: "published",
                 },
             };

@@ -22,6 +22,14 @@ const reelSchema = new mongoose.Schema({
     ref: "ChessGame",
   },
 
+  interactive: {
+    chessFen: { type: String, default: null },
+    triggerTimestamp: { type: Number, default: null },
+    playerColor: { type: String, enum: ["w", "b", null], default: null },
+    solutionMoves: { type: [String], default: [] },
+    difficultyRating: { type: Number, min: 1, max: 5, default: null },
+  },
+
   engagement: {
     likes: { type: Number, default: 0 },
     comments: { type: Number, default: 0 },

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Stockfish Engine</title>
+</head>
+
+<body>
+    <script>
+        // Stockfish WASM engine bridge for React Native WebView
+        // The stockfish.js file is an Emscripten-compiled WASM build.
+        // It sets up onmessage/postMessage on the global scope (self).
+        // We intercept its output by overriding self.postMessage before loading it,
+        // then forward UCI commands into it via the overridden onmessage handler.
+
+        let stockfishReady = false;
+        let stockfishOnMessage = null;
+        let pendingCommands = [];
+
+        function sendToRN(data) {
+            if (window.ReactNativeWebView) {
+                window.ReactNativeWebView.postMessage(JSON.stringify(data));
+            }
+        }
+
+        // Stockfish uses self.postMessage to send UCI output.
+        // We capture it here and forward to RN.
+        const originalPostMessage = self.postMessage;
+        self.postMessage = function (msg) {
+            const line = typeof msg === 'string' ? msg : (msg && msg.data ? msg.data : String(msg));
+
+            if (line === 'uciok') {
+                stockfishReady = true;
+                sendToRN({ type: 'ready' });
+                // Flush pending commands
+                pendingCommands.forEach(function (cmd) { sendUCI(cmd); });
+                pendingCommands = [];
+            } else if (line.startsWith && line.startsWith('info depth')) {
+                sendToRN({ type: 'info', data: line });
+            } else if (line.startsWith && line.startsWith('bestmove')) {
+                var parts = line.split(' ');
+                sendToRN({ type: 'bestmove', move: parts[1] || null });
+            }
+            // All other UCI output is silently ignored
+        };
+
+        function sendUCI(cmd) {
+            // Stockfish sets self.onmessage — we invoke it directly
+            if (self.onmessage) {
+                self.onmessage({ data: cmd });
+            }
+        }
+
+        function initEngine() {
+            if (stockfishReady) return;
+            // Send UCI init command — stockfish.js has set self.onmessage by now
+            if (self.onmessage) {
+                sendUCI('uci');
+            } else {
+                sendToRN({ type: 'error', message: 'Stockfish onmessage not available' });
+            }
+        }
+
+        // Listen for commands from React Native
+        document.addEventListener('message', function (event) {
+            handleMessage(event.data);
+        });
+
+        function handleMessage(raw) {
+            if (typeof raw !== 'string' || !raw.startsWith('{')) return;
+
+            try {
+                var msg = JSON.parse(raw);
+
+                if (msg.type === 'init') {
+                    initEngine();
+                } else if (msg.type === 'evaluate') {
+                    if (!stockfishReady) {
+                        // Queue command until ready
+                        pendingCommands.push('stop');
+                        pendingCommands.push('position fen ' + msg.fen);
+                        pendingCommands.push('go depth ' + (msg.depth || 12));
+                        return;
+                    }
+                    sendUCI('stop');
+                    sendUCI('position fen ' + msg.fen);
+                    sendUCI('go depth ' + (msg.depth || 12));
+                } else if (msg.type === 'stop') {
+                    sendUCI('stop');
+                } else if (msg.type === 'quit') {
+                    sendUCI('quit');
+                }
+            } catch (err) {
+                // Silently ignore parse errors
+            }
+        }
+
+        sendToRN({ type: 'loaded' });
+    </script>
+    <!-- Stockfish WASM build — sets self.onmessage handler.
+     We override self.postMessage above to capture its output. -->
+    <script src="stockfish.js"></script>
+</body>
+
+</html>

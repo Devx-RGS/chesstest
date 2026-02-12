@@ -22,12 +22,21 @@ export interface ReelEngagement {
     saves: number;
 }
 
+export interface InteractiveData {
+    chessFen: string | null;
+    triggerTimestamp: number | null;
+    playerColor: 'w' | 'b' | null;
+    solutionMoves: string[];
+    difficultyRating: number | null;
+}
+
 export interface Reel {
     _id: string;
     video: ReelVideo;
     content: ReelContent;
     engagement: ReelEngagement;
     gameId?: string;
+    interactive?: InteractiveData;
     status: "draft" | "published" | "archived";
     createdAt: string;
     updatedAt: string;

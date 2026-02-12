@@ -17,6 +17,8 @@ import { colors } from "@/constants/themes";
 import { getDifficultyColor } from "@/services/reelApi";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
+import InteractiveSession from "@/components/chess/InteractiveSession";
+import { useGameStore } from "@/stores/gameStore";
 
 // Difficulty mapping
 const difficultyLabels: Record<string, string> = {
@@ -65,9 +67,19 @@ export function ReelCard({
     const [hasRecordedView, setHasRecordedView] = useState(false);
     const [hasVideoError, setHasVideoError] = useState(false);
     const [isImmersive, setIsImmersive] = useState(false);
+    const [showChallengeCTA, setShowChallengeCTA] = useState(false);
+    const [showInteractiveSession, setShowInteractiveSession] = useState(false);
+    const [hasChallengeTriggered, setHasChallengeTriggered] = useState(false);
     const viewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const immersiveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const uiOpacity = useRef(new Animated.Value(1)).current;
+
+    // Check if this reel has an interactive chess challenge
+    const hasInteractiveChallenge = Boolean(reel.interactive?.chessFen);
+    const triggerTimestampMs = (reel.interactive?.triggerTimestamp || 0) * 1000;
+
+    // Game store for interactive session
+    const startSession = useGameStore((s) => s.startSession);
 
     // Check if video URL is valid (not empty or whitespace)
     const hasValidUrl = Boolean(reel.video?.url?.trim());
@@ -79,6 +91,9 @@ export function ReelCard({
         setHasRecordedView(false);
         setIsPlaying(false);
         setIsImmersive(false);
+        setShowChallengeCTA(false);
+        setShowInteractiveSession(false);
+        setHasChallengeTriggered(false);
         uiOpacity.setValue(1);
     }, [reel._id]);
 
@@ -220,6 +235,20 @@ export function ReelCard({
             setIsLoading(false);
             setIsPlaying(status.isPlaying);
 
+            // Interactive challenge trigger: pause at configured timestamp
+            if (
+                hasInteractiveChallenge &&
+                !hasChallengeTriggered &&
+                !showInteractiveSession &&
+                status.positionMillis >= triggerTimestampMs &&
+                triggerTimestampMs > 0
+            ) {
+                setHasChallengeTriggered(true);
+                videoRef.current?.pauseAsync();
+                setIsPlaying(false);
+                setShowChallengeCTA(true);
+            }
+
             // Loop video when finished
             if (status.didJustFinish) {
                 videoRef.current?.replayAsync();
@@ -240,6 +269,25 @@ export function ReelCard({
         await videoRef.current?.setIsMutedAsync(!isMuted);
         setIsMuted(!isMuted);
     };
+
+    // Start the interactive chess challenge with user-chosen color
+    const handleStartChallenge = useCallback((chosenColor: 'w' | 'b') => {
+        if (!reel.interactive?.chessFen) return;
+        setShowChallengeCTA(false);
+        startSession(reel.interactive.chessFen, chosenColor);
+        setShowInteractiveSession(true);
+    }, [reel.interactive, startSession]);
+
+    // Handle session end — resume video
+    const handleSessionEnd = useCallback(async () => {
+        setShowInteractiveSession(false);
+        try {
+            await videoRef.current?.playAsync();
+            setIsPlaying(true);
+        } catch (err) {
+            console.warn('Failed to resume video after challenge:', err);
+        }
+    }, []);
 
     const handleVideoPress = () => {
         // If in immersive mode, exit it and show UI
@@ -433,6 +481,55 @@ export function ReelCard({
                     onSave={onSave}
                 />
             </Animated.View>
+
+            {/* Interactive Chess Challenge CTA */}
+            {showChallengeCTA && hasInteractiveChallenge && (
+                <View style={styles.challengeOverlay}>
+                    <View style={styles.challengeCard}>
+                        <Text style={styles.challengeTitle}>♟ Interactive Challenge!</Text>
+                        <Text style={styles.challengeDesc}>
+                            {reel.content.description || 'Can you find the best move?'}
+                        </Text>
+                        <Text style={styles.challengeChooseText}>Choose your side:</Text>
+                        <View style={styles.colorChoiceRow}>
+                            <TouchableOpacity
+                                style={[styles.colorChoiceBtn, styles.whiteBtn]}
+                                onPress={() => handleStartChallenge('w')}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={styles.colorBtnEmoji}>♔</Text>
+                                <Text style={styles.whiteBtnText}>White</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.colorChoiceBtn, styles.blackBtn]}
+                                onPress={() => handleStartChallenge('b')}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={styles.colorBtnEmoji}>♚</Text>
+                                <Text style={styles.blackBtnText}>Black</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <TouchableOpacity
+                            style={styles.challengeSkip}
+                            onPress={async () => {
+                                setShowChallengeCTA(false);
+                                await videoRef.current?.playAsync();
+                                setIsPlaying(true);
+                            }}
+                        >
+                            <Text style={styles.challengeSkipText}>Skip →</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            )}
+
+            {/* Interactive Session Modal */}
+            <InteractiveSession
+                visible={showInteractiveSession}
+                onSessionEnd={handleSessionEnd}
+                title={reel.content.title}
+                description={reel.content.description}
+            />
         </View>
     );
 }
@@ -616,5 +713,103 @@ const styles = StyleSheet.create({
         color: colors.text.muted,
         fontSize: 14,
         textAlign: "center",
+    },
+    // Interactive Challenge CTA styles
+    challengeOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: "rgba(0, 0, 0, 0.7)",
+        justifyContent: "center",
+        alignItems: "center",
+        zIndex: 100,
+    },
+    challengeCard: {
+        backgroundColor: "rgba(30, 30, 30, 0.95)",
+        borderRadius: 20,
+        paddingVertical: 28,
+        paddingHorizontal: 24,
+        alignItems: "center",
+        width: "80%",
+        maxWidth: 320,
+        borderWidth: 1,
+        borderColor: "rgba(255, 255, 255, 0.15)",
+    },
+    challengeTitle: {
+        fontSize: 22,
+        fontWeight: "800",
+        color: "#fff",
+        marginBottom: 8,
+    },
+    challengeDesc: {
+        fontSize: 14,
+        color: "#aaa",
+        textAlign: "center",
+        marginBottom: 20,
+        lineHeight: 20,
+    },
+    challengeButton: {
+        backgroundColor: "#4CAF50",
+        paddingVertical: 14,
+        paddingHorizontal: 32,
+        borderRadius: 14,
+        marginBottom: 12,
+        width: "100%",
+        alignItems: "center",
+    },
+    challengeButtonText: {
+        fontSize: 18,
+        fontWeight: "800",
+        color: "#fff",
+        letterSpacing: 0.5,
+    },
+    challengeSkip: {
+        paddingVertical: 8,
+    },
+    challengeSkipText: {
+        fontSize: 14,
+        color: "#888",
+        fontWeight: "600",
+    },
+    challengeChooseText: {
+        fontSize: 13,
+        color: "#ccc",
+        fontWeight: "600",
+        marginBottom: 12,
+        textTransform: "uppercase",
+        letterSpacing: 1,
+    },
+    colorChoiceRow: {
+        flexDirection: "row",
+        gap: 12,
+        marginBottom: 12,
+        width: "100%",
+    },
+    colorChoiceBtn: {
+        flex: 1,
+        paddingVertical: 14,
+        borderRadius: 14,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    whiteBtn: {
+        backgroundColor: "#f0f0f0",
+    },
+    blackBtn: {
+        backgroundColor: "#333",
+        borderWidth: 1,
+        borderColor: "#555",
+    },
+    colorBtnEmoji: {
+        fontSize: 28,
+        marginBottom: 4,
+    },
+    whiteBtnText: {
+        fontSize: 15,
+        fontWeight: "800",
+        color: "#222",
+    },
+    blackBtnText: {
+        fontSize: 15,
+        fontWeight: "800",
+        color: "#f0f0f0",
     },
 });
