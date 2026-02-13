@@ -39,6 +39,7 @@ export default function EngineService() {
     // Subscribe to store state
     const isEvaluating = useGameStore((s) => s.isEvaluating);
     const fen = useGameStore((s) => s.fen);
+    const sessionStatus = useGameStore((s) => s.sessionStatus);
     const updateEvaluation = useGameStore((s) => s.updateEvaluation);
     const setEngineReady = useGameStore((s) => s.setEngineReady);
 
@@ -186,6 +187,18 @@ export default function EngineService() {
             // Silently ignore — likely raw UCI output that slipped through
         }
     }, [sendToEngine, updateEvaluation, setEngineReady]);
+
+    /**
+     * Reset lastEvalFen when a new session starts so the engine always
+     * evaluates the initial position — even if the FEN is the same as
+     * a previous session. Without this, the dedup check below would
+     * prevent the engine from running, and the bot would never move.
+     */
+    useEffect(() => {
+        if (sessionStatus === 'active') {
+            lastEvalFen.current = null;
+        }
+    }, [sessionStatus]);
 
     /**
      * When isEvaluating becomes true and FEN changes, send evaluation request

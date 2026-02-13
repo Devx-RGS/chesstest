@@ -37,7 +37,8 @@ interface PostReelData {
     interactive?: {
         chessFen?: string;
         triggerTimestamp?: number;
-        playerColor?: 'w' | 'b';
+        playerColor?: 'w' | 'b' | null;
+        challengePrompt?: string;
         solutionMoves?: string[];
         difficultyRating?: number;
     };
@@ -110,7 +111,8 @@ export function usePostReel() {
                     interactive: reelData.interactive ? {
                         chessFen: reelData.interactive.chessFen || null,
                         triggerTimestamp: reelData.interactive.triggerTimestamp || null,
-                        playerColor: reelData.interactive.playerColor || null,
+                        playerColor: reelData.interactive.playerColor ?? null,
+                        challengePrompt: reelData.interactive.challengePrompt || null,
                         solutionMoves: reelData.interactive.solutionMoves || [],
                         difficultyRating: reelData.interactive.difficultyRating || null,
                     } : undefined,

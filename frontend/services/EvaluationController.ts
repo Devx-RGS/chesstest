@@ -10,7 +10,7 @@
 // ============== THRESHOLDS ==============
 
 /** Score (in pawns) below which we show a WARNING badge */
-export const EVAL_WARNING_THRESHOLD = -0.8;
+export const EVAL_WARNING_THRESHOLD = -1.5;
 
 /** Score (in pawns) below which the session COLLAPSES (ends) */
 export const EVAL_COLLAPSE_THRESHOLD = -4.5;
@@ -19,7 +19,7 @@ export const EVAL_COLLAPSE_THRESHOLD = -4.5;
 export const COLLAPSE_DELAY_MS = 1200;
 
 /** Default engine search depth */
-export const DEFAULT_DEPTH = 12;
+export const DEFAULT_DEPTH = 8;
 
 // ============== TYPES ==============
 

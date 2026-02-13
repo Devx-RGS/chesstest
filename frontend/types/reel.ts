@@ -26,6 +26,7 @@ export interface InteractiveData {
     chessFen: string | null;
     triggerTimestamp: number | null;
     playerColor: 'w' | 'b' | null;
+    challengePrompt?: string | null;
     solutionMoves: string[];
     difficultyRating: number | null;
 }

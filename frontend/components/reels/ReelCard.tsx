@@ -488,27 +488,60 @@ export function ReelCard({
                     <View style={styles.challengeCard}>
                         <Text style={styles.challengeTitle}>♟ Interactive Challenge!</Text>
                         <Text style={styles.challengeDesc}>
-                            {reel.content.description || 'Can you find the best move?'}
+                            {reel.interactive?.challengePrompt
+                                || reel.content.description
+                                || 'Can you find the best move?'}
                         </Text>
-                        <Text style={styles.challengeChooseText}>Choose your side:</Text>
-                        <View style={styles.colorChoiceRow}>
-                            <TouchableOpacity
-                                style={[styles.colorChoiceBtn, styles.whiteBtn]}
-                                onPress={() => handleStartChallenge('w')}
-                                activeOpacity={0.8}
-                            >
-                                <Text style={styles.colorBtnEmoji}>♔</Text>
-                                <Text style={styles.whiteBtnText}>White</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.colorChoiceBtn, styles.blackBtn]}
-                                onPress={() => handleStartChallenge('b')}
-                                activeOpacity={0.8}
-                            >
-                                <Text style={styles.colorBtnEmoji}>♚</Text>
-                                <Text style={styles.blackBtnText}>Black</Text>
-                            </TouchableOpacity>
-                        </View>
+
+                        {/* If admin set a forced color, show single accept button */}
+                        {reel.interactive?.playerColor ? (
+                            <>
+                                <View style={styles.forcedColorBadge}>
+                                    <Text style={styles.forcedColorEmoji}>
+                                        {reel.interactive.playerColor === 'w' ? '♔' : '♚'}
+                                    </Text>
+                                    <Text style={styles.forcedColorText}>
+                                        Play as {reel.interactive.playerColor === 'w' ? 'White' : 'Black'}
+                                    </Text>
+                                </View>
+                                <TouchableOpacity
+                                    style={[styles.colorChoiceBtn, {
+                                        backgroundColor: '#4CAF50',
+                                        width: '100%',
+                                        marginBottom: 12,
+                                    }]}
+                                    onPress={() => handleStartChallenge(reel.interactive!.playerColor!)}
+                                    activeOpacity={0.8}
+                                >
+                                    <Text style={styles.colorBtnEmoji}>⚡</Text>
+                                    <Text style={[styles.whiteBtnText, { color: '#fff' }]}>Accept Challenge</Text>
+                                </TouchableOpacity>
+                            </>
+                        ) : (
+                            /* Admin allows user to choose */
+                            <>
+                                <Text style={styles.challengeChooseText}>Choose your side:</Text>
+                                <View style={styles.colorChoiceRow}>
+                                    <TouchableOpacity
+                                        style={[styles.colorChoiceBtn, styles.whiteBtn]}
+                                        onPress={() => handleStartChallenge('w')}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Text style={styles.colorBtnEmoji}>♔</Text>
+                                        <Text style={styles.whiteBtnText}>White</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.colorChoiceBtn, styles.blackBtn]}
+                                        onPress={() => handleStartChallenge('b')}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Text style={styles.colorBtnEmoji}>♚</Text>
+                                        <Text style={styles.blackBtnText}>Black</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </>
+                        )}
+
                         <TouchableOpacity
                             style={styles.challengeSkip}
                             onPress={async () => {
@@ -811,5 +844,25 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontWeight: "800",
         color: "#f0f0f0",
+    },
+    forcedColorBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        backgroundColor: "rgba(255,255,255,0.1)",
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        marginBottom: 16,
+        width: "100%",
+        justifyContent: "center",
+    },
+    forcedColorEmoji: {
+        fontSize: 28,
+    },
+    forcedColorText: {
+        fontSize: 16,
+        fontWeight: "700",
+        color: "#fff",
     },
 });

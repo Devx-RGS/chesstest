@@ -50,7 +50,8 @@ export default function UploadReelScreen() {
     const [interactiveEnabled, setInteractiveEnabled] = useState(false);
     const [chessFen, setChessFen] = useState("");
     const [triggerTimestamp, setTriggerTimestamp] = useState("");
-    const [playerColor, setPlayerColor] = useState<'w' | 'b'>('w');
+    const [playerColor, setPlayerColor] = useState<'w' | 'b' | null>(null);
+    const [challengePrompt, setChallengePrompt] = useState("");
     const [solutionMoves, setSolutionMoves] = useState("");
     const [challengeRating, setChallengeRating] = useState(3);
 
@@ -132,6 +133,7 @@ export default function UploadReelScreen() {
                 chessFen: chessFen.trim(),
                 triggerTimestamp: triggerTimestamp ? parseFloat(triggerTimestamp) : null,
                 playerColor: playerColor,
+                challengePrompt: challengePrompt.trim() || null,
                 solutionMoves: solutionMoves ? solutionMoves.split(",").map(m => m.trim()).filter(Boolean) : [],
                 difficultyRating: challengeRating,
             } : undefined;
@@ -489,10 +491,22 @@ export default function UploadReelScreen() {
                                 />
                             </View>
 
-                            {/* Player Color */}
+                            {/* Player Color Assignment */}
                             <View style={{ marginTop: 12 }}>
-                                <Text style={styles.playerLabel}>Player Color</Text>
+                                <Text style={styles.playerLabel}>Player Color Assignment</Text>
                                 <View style={styles.difficultyContainer}>
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.difficultyOption,
+                                            playerColor === null && { backgroundColor: colors.accent.purple, borderColor: colors.accent.purple },
+                                        ]}
+                                        onPress={() => { setPlayerColor(null); Haptics.selectionAsync(); }}
+                                    >
+                                        <Text style={[
+                                            styles.difficultyText,
+                                            playerColor === null && { color: '#fff' },
+                                        ]}>🎯 CHOOSE</Text>
+                                    </TouchableOpacity>
                                     <TouchableOpacity
                                         style={[
                                             styles.difficultyOption,
@@ -518,7 +532,26 @@ export default function UploadReelScreen() {
                                         ]}>♚ BLACK</Text>
                                     </TouchableOpacity>
                                 </View>
+                                <Text style={{ color: colors.text.muted, fontSize: 11, marginTop: -12, marginBottom: 8 }}>
+                                    {playerColor === null
+                                        ? 'User will choose their own side'
+                                        : `User will be forced to play as ${playerColor === 'w' ? 'White' : 'Black'}`}
+                                </Text>
                             </View>
+
+                            {/* Challenge Prompt (when color is forced) */}
+                            {playerColor !== null && (
+                                <View style={{ marginTop: 4 }}>
+                                    <Text style={styles.playerLabel}>Challenge Prompt (optional)</Text>
+                                    <TextInput
+                                        style={styles.playerInput}
+                                        placeholder={playerColor === 'w' ? 'e.g. Find the checkmate!' : 'e.g. Defend this endgame!'}
+                                        placeholderTextColor={colors.text.muted}
+                                        value={challengePrompt}
+                                        onChangeText={setChallengePrompt}
+                                    />
+                                </View>
+                            )}
 
                             {/* Challenge Difficulty Rating */}
                             <View style={{ marginTop: 4 }}>

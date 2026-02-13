@@ -284,7 +284,7 @@ export const useGameStore = create<GameState>((set, get) => ({
      * If evaluation collapses below threshold, end session after delay.
      */
     updateEvaluation: (eval_: EvalResult) => {
-        const { sessionStatus, playerColor } = get();
+        const { sessionStatus, playerColor, _chess } = get();
         if (sessionStatus !== 'active' && sessionStatus !== 'warning') return;
 
         // Adjust score for player's perspective
@@ -302,6 +302,13 @@ export const useGameStore = create<GameState>((set, get) => ({
             evaluation: adjustedEval,
             isEvaluating: false,
         });
+
+        // Only apply collapse/warning status transitions when it's the PLAYER's turn.
+        // When it's the bot's turn the evaluation reflects the starting position,
+        // not the quality of the player's play — collapsing here would freeze the
+        // game before the bot even moves.
+        const isBotTurn = _chess && _chess.turn() !== playerColor;
+        if (isBotTurn) return;
 
         // Handle status transitions
         if (adjustedStatus === 'collapsed') {
