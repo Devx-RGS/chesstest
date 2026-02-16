@@ -1,5 +1,6 @@
 import Reel from "../models/Reel.js";
 import Comment from "../models/Comment.js";
+import Grandmaster from "../models/Grandmaster.js";
 
 // GET /reels - Get all published reels (paginated feed)
 export const getFeed = async (req, res) => {
@@ -68,20 +69,40 @@ export const getRandomReels = async (req, res) => {
 // GET /reels/grandmasters - Get list of all available grandmasters (for grandmaster selection UI)
 export const getAvailableGrandmasters = async (req, res) => {
     try {
-        // Get distinct grandmaster names from published reels
+        // 1. Get distinct grandmaster names from published reels
         const grandmasterNames = await Reel.distinct("grandmasters", { status: "published" });
-
-        // Filter out any null/empty values
         const validNames = grandmasterNames.filter(name => name && name.trim());
 
-        // Get reel count for each grandmaster
+        // 2. Get admin-created Grandmaster folders (with thumbnails)
+        const adminFolders = await Grandmaster.find().select("name thumbnail");
+        const adminMap = new Map();
+        adminFolders.forEach(gm => {
+            if (gm.name && gm.name.trim()) {
+                adminMap.set(gm.name.toLowerCase(), { name: gm.name, thumbnail: gm.thumbnail || null });
+            }
+        });
+        const adminNames = Array.from(adminMap.values()).map(gm => gm.name);
+
+        // 3. Merge both lists (unique names, case-insensitive dedup)
+        const seenLower = new Set();
+        const mergedNames = [];
+        for (const name of [...adminNames, ...validNames]) {
+            const lower = name.toLowerCase();
+            if (!seenLower.has(lower)) {
+                seenLower.add(lower);
+                mergedNames.push(name);
+            }
+        }
+
+        // 4. Get reel count and thumbnail for each grandmaster
         const grandmastersWithCounts = await Promise.all(
-            validNames.map(async (name) => {
+            mergedNames.map(async (name) => {
                 const count = await Reel.countDocuments({
                     status: "published",
                     grandmasters: name,
                 });
-                return { name, reelCount: count };
+                const adminData = adminMap.get(name.toLowerCase());
+                return { name, reelCount: count, thumbnail: adminData?.thumbnail || null };
             })
         );
 

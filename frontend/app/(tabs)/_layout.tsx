@@ -1,11 +1,41 @@
+import { useEffect } from "react";
 import { Tabs } from "expo-router";
 import { View, Platform } from "react-native";
 import { Home, User, Film } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "@/constants/themes";
+import { useUserLikedReels, useUserSavedReels, useReels } from "@/services/reelApi";
+import { useReelStore } from "@/stores/reelStore";
 
 export default function TabsLayout() {
     const insets = useSafeAreaInsets();
+
+    // Eagerly fetch liked/saved reel IDs so Profile tab has correct counts immediately
+    const { data: userLikedReels } = useUserLikedReels();
+    const { data: userSavedReels } = useUserSavedReels();
+    const { data: fetchedReels } = useReels();
+    const initLikedReels = useReelStore((s) => s.initLikedReels);
+    const initSavedReels = useReelStore((s) => s.initSavedReels);
+    const setReels = useReelStore((s) => s.setReels);
+
+    useEffect(() => {
+        if (userLikedReels !== undefined) {
+            initLikedReels(userLikedReels || []);
+        }
+    }, [userLikedReels, initLikedReels]);
+
+    useEffect(() => {
+        if (userSavedReels !== undefined) {
+            initSavedReels(userSavedReels || []);
+        }
+    }, [userSavedReels, initSavedReels]);
+
+    // Populate reel objects so Profile grid can display thumbnails immediately
+    useEffect(() => {
+        if (fetchedReels && fetchedReels.length > 0) {
+            setReels(fetchedReels);
+        }
+    }, [fetchedReels, setReels]);
 
     return (
         <Tabs

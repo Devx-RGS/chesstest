@@ -31,7 +31,8 @@ type UploadMode = "local" | "url";
 export default function UploadReelScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
-    const params = useLocalSearchParams<{ whitePlayer?: string; blackPlayer?: string }>();
+    const params = useLocalSearchParams<{ whitePlayer?: string; blackPlayer?: string; grandmaster?: string }>();
+    const targetGrandmaster = params.grandmaster || "";
 
     // Upload mode toggle
     const [uploadMode, setUploadMode] = useState<UploadMode>("local");
@@ -163,6 +164,9 @@ export default function UploadReelScreen() {
                     blackPlayer: blackPlayer || null,
                     event: eventName || null,
                     year: year ? parseInt(year) : null,
+                    // Folder categorization
+                    folder: targetGrandmaster ? "grandmaster" : "random",
+                    grandmaster: targetGrandmaster || null,
                 },
             };
 
@@ -205,6 +209,26 @@ export default function UploadReelScreen() {
                     <Text style={styles.headerTitle}>Upload Reel</Text>
                     <View style={{ width: 40 }} />
                 </View>
+
+                {/* Grandmaster Folder Badge */}
+                {targetGrandmaster ? (
+                    <View style={{
+                        backgroundColor: "rgba(168, 85, 247, 0.15)",
+                        borderWidth: 1,
+                        borderColor: "rgba(168, 85, 247, 0.4)",
+                        borderRadius: 12,
+                        padding: 12,
+                        marginBottom: 20,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 10,
+                    }}>
+                        <Film size={18} color={colors.accent.purple} />
+                        <Text style={{ color: colors.accent.purple, fontWeight: "600", fontSize: 14 }}>
+                            Uploading to: {targetGrandmaster}
+                        </Text>
+                    </View>
+                ) : null}
 
                 {/* Upload Mode Toggle */}
                 <GlassCard variant="dark" style={styles.modeToggle}>

@@ -287,6 +287,7 @@ export function getDifficultyColor(difficulty: string): string {
 export interface GrandmasterItem {
     name: string;
     reelCount: number;
+    thumbnail: string | null;
 }
 
 interface GrandmastersResponse {

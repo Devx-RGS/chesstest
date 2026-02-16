@@ -40,6 +40,12 @@ const reelSchema = new mongoose.Schema({
     saves: { type: Number, default: 0 },
   },
 
+  folder: {
+    type: String,
+    enum: ["random", "grandmaster"],
+    default: "random",
+  },
+
   status: {
     type: String,
     enum: ["draft", "published", "archived"],

@@ -484,9 +484,9 @@ export default function AdminDashboard() {
                                     )}
                                 </TouchableOpacity>
 
-                                {/* Grandmaster Folders Grid */}
+                                {/* Grandmaster Folders List */}
                                 {expandedFolders.grandmaster && (
-                                    <View style={{ paddingLeft: 10, paddingTop: 8 }}>
+                                    <View style={{ paddingLeft: 0, paddingTop: 8 }}>
                                         {/* Create Folder Button */}
                                         <TouchableOpacity
                                             onPress={() => setCreateModalVisible(true)}
@@ -508,47 +508,49 @@ export default function AdminDashboard() {
                                             <Text style={{ color: colors.accent.purple, fontWeight: "600" }}>Create Folder</Text>
                                         </TouchableOpacity>
 
-                                        {/* Folder Cards Grid */}
-                                        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
-                                            {(gmFolders || []).map((folder: GrandmasterFolder) => (
+                                        {/* Folder List */}
+                                        <View style={{ borderRadius: 16, overflow: "hidden" }}>
+                                            {(gmFolders || []).map((folder: GrandmasterFolder, index: number) => (
                                                 <TouchableOpacity
                                                     key={folder._id}
                                                     onPress={() => router.push(`/admin/folder/${folder._id}` as any)}
                                                     style={{
-                                                        width: "47%",
-                                                        backgroundColor: "rgba(255,255,255,0.05)",
-                                                        borderRadius: 12,
-                                                        padding: 14,
-                                                        borderWidth: 1,
-                                                        borderColor: "rgba(255,255,255,0.1)"
+                                                        flexDirection: "row",
+                                                        alignItems: "center",
+                                                        backgroundColor: "rgba(255,255,255,0.06)",
+                                                        paddingVertical: 14,
+                                                        paddingHorizontal: 16,
+                                                        borderBottomWidth: index < (gmFolders?.length || 0) - 1 ? 1 : 0,
+                                                        borderBottomColor: "rgba(255,255,255,0.08)",
                                                     }}
                                                 >
-                                                    <View style={{
-                                                        width: "100%",
-                                                        height: 60,
-                                                        borderRadius: 8,
-                                                        backgroundColor: "rgba(123, 47, 247, 0.2)",
-                                                        justifyContent: "center",
-                                                        alignItems: "center",
-                                                        marginBottom: 10,
-                                                        overflow: "hidden"
-                                                    }}>
+                                                    {/* Circular Thumbnail */}
+                                                    <View style={{ marginRight: 14 }}>
                                                         {folder.thumbnail ? (
                                                             <Image
                                                                 source={{ uri: folder.thumbnail }}
-                                                                style={{ width: "100%", height: "100%", borderRadius: 8 }}
+                                                                style={{ width: 48, height: 48, borderRadius: 24 }}
                                                                 resizeMode="cover"
                                                             />
                                                         ) : (
-                                                            <User size={28} color={colors.accent.purple} />
+                                                            <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: "rgba(123, 47, 247, 0.25)", justifyContent: "center", alignItems: "center" }}>
+                                                                <User size={22} color={colors.accent.purple} />
+                                                            </View>
                                                         )}
                                                     </View>
-                                                    <Text style={{ color: colors.text.primary, fontWeight: "600", fontSize: 14 }} numberOfLines={1}>
-                                                        {folder.name}
-                                                    </Text>
-                                                    <Text style={{ color: colors.text.muted, fontSize: 12, marginTop: 4 }}>
-                                                        {folder.reelCount} reels
-                                                    </Text>
+
+                                                    {/* Name & Count */}
+                                                    <View style={{ flex: 1 }}>
+                                                        <Text style={{ color: colors.text.primary, fontSize: 16, fontWeight: "600" }} numberOfLines={1}>
+                                                            {folder.name}
+                                                        </Text>
+                                                        <Text style={{ color: colors.text.muted, fontSize: 13, marginTop: 2 }}>
+                                                            {folder.reelCount} {folder.reelCount === 1 ? "reel" : "reels"}
+                                                        </Text>
+                                                    </View>
+
+                                                    {/* Chevron */}
+                                                    <ChevronRight size={18} color={colors.text.muted} />
                                                 </TouchableOpacity>
                                             ))}
                                         </View>

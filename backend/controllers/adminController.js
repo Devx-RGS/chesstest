@@ -41,6 +41,19 @@ export const uploadVideo = async (req, res) => {
         if (whitePlayer) grandmastersList.push(whitePlayer);
         if (blackPlayer && blackPlayer !== whitePlayer) grandmastersList.push(blackPlayer);
 
+        // If an explicit grandmaster name is provided (e.g., from folder upload),
+        // add it to the grandmasters list if not already present
+        const explicitGrandmaster = (videoData?.grandmaster || "").trim();
+        if (explicitGrandmaster && !grandmastersList.some(g => g.toLowerCase() === explicitGrandmaster.toLowerCase())) {
+            grandmastersList.push(explicitGrandmaster);
+        }
+
+        // Determine folder: explicit folder param, or infer from grandmasters
+        let reelFolder = videoData?.folder || "random";
+        if (grandmastersList.length > 0) {
+            reelFolder = "grandmaster";
+        }
+
         const newVideo = new Reel({
             video: {
                 url: videoData?.video?.url,
@@ -55,6 +68,7 @@ export const uploadVideo = async (req, res) => {
             },
             gameId: gameId,
             grandmasters: grandmastersList,
+            folder: reelFolder,
             interactive: {
                 chessFen: videoData?.interactive?.chessFen || null,
                 triggerTimestamp: videoData?.interactive?.triggerTimestamp || null,
@@ -215,7 +229,14 @@ export const getAdminStats = async (req, res) => {
 // GET /admin/folder-stats - Get folder distribution stats
 export const getFolderStats = async (req, res) => {
     try {
-        const randomCount = await Reel.countDocuments({ folder: "random" });
+        // Reels without a folder field (or with folder: null/undefined) are treated as "random"
+        const randomCount = await Reel.countDocuments({
+            $or: [
+                { folder: "random" },
+                { folder: null },
+                { folder: { $exists: false } }
+            ]
+        });
         const grandmasterCount = await Reel.countDocuments({ folder: "grandmaster" });
 
         res.json({
@@ -266,8 +287,8 @@ export const getGrandmasterFolders = async (req, res) => {
         const foldersWithCounts = await Promise.all(
             grandmasters.map(async (gm) => {
                 const reelCount = await Reel.countDocuments({
-                    folder: "grandmaster",
-                    grandmaster: gm.name,
+                    grandmasters: gm.name,
+                    status: "published",
                 });
                 return {
                     _id: gm._id,
@@ -302,8 +323,8 @@ export const getGrandmasterById = async (req, res) => {
         }
 
         const reelCount = await Reel.countDocuments({
-            folder: "grandmaster",
-            grandmaster: grandmaster.name,
+            grandmasters: grandmaster.name,
+            status: "published",
         });
 
         res.json({
@@ -436,8 +457,18 @@ export const getReelsByFolderAdmin = async (req, res) => {
         const { folder, grandmaster } = req.query;
 
         const query = {};
-        if (folder) query.folder = folder;
-        if (grandmaster) query.grandmaster = grandmaster;
+        if (folder === "random") {
+            // Include reels explicitly marked as random AND legacy reels with no folder field
+            query.$or = [
+                { folder: "random" },
+                { folder: null },
+                { folder: { $exists: false } }
+            ];
+        } else if (folder) {
+            query.folder = folder;
+        }
+        // grandmasters is an array field, so use $in to match
+        if (grandmaster) query.grandmasters = { $in: [grandmaster] };
 
         const reels = await Reel.find(query).populate("gameId").sort({ createdAt: -1 });
 

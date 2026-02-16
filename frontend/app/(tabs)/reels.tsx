@@ -11,6 +11,7 @@ import {
     Share,
     TouchableOpacity,
     ScrollView,
+    Image,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -18,7 +19,7 @@ import { Film, ArrowLeft, Crown } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { ReelCard } from "@/components/reels/ReelCard";
 import { CommentsBottomSheet } from "@/components/reels/CommentsBottomSheet";
-import { useReels, useLikeReel, useRecordView, useAvailableGrandmasters, useReelsByGrandmaster, useUserLikedReels, useSaveReel, useUserSavedReels, GrandmasterItem } from "@/services/reelApi";
+import { useReels, useLikeReel, useRecordView, useAvailableGrandmasters, useReelsByGrandmaster, useSaveReel, GrandmasterItem } from "@/services/reelApi";
 import { useReelStore } from "@/stores/reelStore";
 import { useAuthStore } from "@/stores/authStore";
 import { colors } from "@/constants/themes";
@@ -45,12 +46,6 @@ export default function ReelsScreen() {
     // Fetch reels based on selection
     const { data: fetchedReels, isLoading, error, refetch, isRefetching } = useReels();
     const { data: gmReelsData, isLoading: gmLoading, refetch: refetchGm } = useReelsByGrandmaster(selectedGrandmaster);
-
-    // Fetch liked reels for authenticated users
-    const { data: userLikedReels } = useUserLikedReels();
-
-    // Fetch saved reels for authenticated users
-    const { data: userSavedReels } = useUserSavedReels();
 
     const likeMutation = useLikeReel();
     const saveMutation = useSaveReel();
@@ -82,7 +77,6 @@ export default function ReelsScreen() {
     const storeReels = useReelStore((s) => s.reels);
     const setReels = useReelStore((s) => s.setReels);
     const setCurrentIndex = useReelStore((s) => s.setCurrentIndex);
-    const initLikedReels = useReelStore((s) => s.initLikedReels);
     const likeReel = useReelStore((s) => s.likeReel);
     const unlikeReel = useReelStore((s) => s.unlikeReel);
     const saveReel = useReelStore((s) => s.saveReel);
@@ -102,24 +96,6 @@ export default function ReelsScreen() {
     const displayReels = selectedTab === "all"
         ? (storeReels.length > 0 ? storeReels : fetchedReels)
         : gmReelsData?.reels;
-
-    // Sync liked reels from server for authenticated users
-    useEffect(() => {
-        // Always reinitialize liked reels from server data, even if empty
-        // This ensures old likes are cleared when switching users
-        if (userLikedReels !== undefined) {
-            initLikedReels(userLikedReels || []);
-        }
-    }, [userLikedReels, initLikedReels]);
-
-    // Sync saved reels from server for authenticated users
-    const initSavedReels = useReelStore((s) => s.initSavedReels);
-    useEffect(() => {
-        // Always reinitialize saved reels from server data, even if empty
-        if (userSavedReels !== undefined) {
-            initSavedReels(userSavedReels || []);
-        }
-    }, [userSavedReels, initSavedReels]);
 
     // Sync fetched reels to store
     useEffect(() => {
@@ -274,7 +250,7 @@ export default function ReelsScreen() {
         );
     }
 
-    // Show grandmaster selection grid when Grandmasters tab selected but no grandmaster chosen
+    // Show grandmaster selection list when Grandmasters tab selected but no grandmaster chosen
     if (selectedTab === "grandmasters" && !selectedGrandmaster) {
         return (
             <View style={styles.container}>
@@ -283,7 +259,7 @@ export default function ReelsScreen() {
                     colors={[colors.background.primary, colors.background.secondary]}
                     style={styles.gmListContainer}
                 >
-                    {/* Simple Header with back button */}
+                    {/* Header */}
                     <View style={[styles.gmListHeader, { paddingTop: insets.top + 10 }]}>
                         <TouchableOpacity onPress={() => handleTabChange("all")} style={styles.backButton}>
                             <ArrowLeft size={24} color={colors.text.primary} />
@@ -294,27 +270,43 @@ export default function ReelsScreen() {
 
                     <Text style={styles.gmListSubtitle}>Select a grandmaster to watch reels</Text>
 
-                    {/* Grandmasters Grid */}
-                    <ScrollView contentContainerStyle={styles.gmGrid} showsVerticalScrollIndicator={false}>
-                        {grandmasters?.map((gm: GrandmasterItem) => (
+                    {/* Grandmasters List */}
+                    <ScrollView contentContainerStyle={styles.gmListContent} showsVerticalScrollIndicator={false}>
+                        {grandmasters?.map((gm: GrandmasterItem, index: number) => (
                             <TouchableOpacity
                                 key={gm.name}
-                                style={styles.gmCard}
+                                style={styles.gmListRow}
                                 onPress={() => handleSelectGrandmaster(gm.name)}
-                                activeOpacity={0.8}
+                                activeOpacity={0.7}
                             >
-                                <LinearGradient
-                                    colors={[colors.accent.purple + "40", colors.accent.cyan + "20"]}
-                                    style={styles.gmCardGradient}
-                                >
-                                    <Crown size={28} color={colors.accent.cyan} />
-                                    <Text style={styles.gmCardName} numberOfLines={2}>
+                                {/* Circular Thumbnail */}
+                                <View style={styles.gmAvatarContainer}>
+                                    {gm.thumbnail ? (
+                                        <Image
+                                            source={{ uri: gm.thumbnail }}
+                                            style={styles.gmAvatar}
+                                        />
+                                    ) : (
+                                        <View style={[styles.gmAvatar, styles.gmAvatarPlaceholder]}>
+                                            <Crown size={20} color={colors.accent.cyan} />
+                                        </View>
+                                    )}
+                                </View>
+
+                                {/* Name & Count */}
+                                <View style={styles.gmListInfo}>
+                                    <Text style={styles.gmListName} numberOfLines={1}>
                                         {gm.name}
                                     </Text>
-                                    <Text style={styles.gmCardCount}>
+                                    <Text style={styles.gmListCount}>
                                         {gm.reelCount} {gm.reelCount === 1 ? "reel" : "reels"}
                                     </Text>
-                                </LinearGradient>
+                                </View>
+
+                                {/* Chevron */}
+                                <View style={styles.gmListChevron}>
+                                    <ArrowLeft size={16} color={colors.text.muted} style={{ transform: [{ rotate: '180deg' }] }} />
+                                </View>
                             </TouchableOpacity>
                         ))}
                         {(!grandmasters || grandmasters.length === 0) && (
@@ -367,12 +359,8 @@ export default function ReelsScreen() {
                 </View>
             )}
 
-            {/* Show selected grandmaster name as subtitle */}
-            {!isImmersive && selectedTab === "grandmasters" && selectedGrandmaster && gmReelsData?.grandmaster && (
-                <View style={styles.gmSubtitleContainer}>
-                    <Text style={styles.gmSubtitle}>Viewing: {gmReelsData.grandmaster.name}</Text>
-                </View>
-            )}
+
+
 
             {(!displayReels || displayReels.length === 0) ? (
                 <View style={styles.emptyContainer}>
@@ -537,36 +525,47 @@ const styles = StyleSheet.create({
         marginTop: 4,
         marginBottom: 12,
     },
-    gmGrid: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        paddingHorizontal: 12,
-        gap: 12,
+    gmListContent: {
+        paddingHorizontal: 16,
         paddingBottom: 100,
+        gap: 12,
     },
-    gmCard: {
-        width: (SCREEN_WIDTH - 48) / 2,
-        borderRadius: 16,
-        overflow: "hidden",
-    },
-    gmCardGradient: {
-        padding: 20,
+    gmListRow: {
+        flexDirection: "row",
         alignItems: "center",
+        backgroundColor: "rgba(255,255,255,0.06)",
+        paddingVertical: 18,
+        paddingHorizontal: 18,
+        borderRadius: 16,
+    },
+    gmAvatarContainer: {
+        marginRight: 16,
+    },
+    gmAvatar: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+    },
+    gmAvatarPlaceholder: {
+        backgroundColor: "rgba(123, 47, 247, 0.25)",
         justifyContent: "center",
-        minHeight: 140,
+        alignItems: "center",
     },
-    gmCardName: {
+    gmListInfo: {
+        flex: 1,
+    },
+    gmListName: {
         color: colors.text.primary,
-        fontSize: 14,
-        fontWeight: "600",
-        marginTop: 12,
-        textAlign: "center",
+        fontSize: 17,
+        fontWeight: "700",
     },
-    gmCardCount: {
+    gmListCount: {
         color: colors.text.muted,
-        fontSize: 11,
-        marginTop: 4,
-        textAlign: "center",
+        fontSize: 13,
+        marginTop: 3,
+    },
+    gmListChevron: {
+        marginLeft: 8,
     },
     noGmContainer: {
         flex: 1,
