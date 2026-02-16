@@ -36,6 +36,11 @@ export const uploadVideo = async (req, res) => {
             gameId = game._id;
         }
 
+        // Build grandmasters array from the player names
+        const grandmastersList = [];
+        if (whitePlayer) grandmastersList.push(whitePlayer);
+        if (blackPlayer && blackPlayer !== whitePlayer) grandmastersList.push(blackPlayer);
+
         const newVideo = new Reel({
             video: {
                 url: videoData?.video?.url,
@@ -49,6 +54,7 @@ export const uploadVideo = async (req, res) => {
                 difficulty: videoData?.content?.difficulty || "beginner",
             },
             gameId: gameId,
+            grandmasters: grandmastersList,
             interactive: {
                 chessFen: videoData?.interactive?.chessFen || null,
                 triggerTimestamp: videoData?.interactive?.triggerTimestamp || null,

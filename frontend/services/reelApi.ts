@@ -282,28 +282,23 @@ export function getDifficultyColor(difficulty: string): string {
     }
 }
 
-// ============== GAMES API ==============
+// ============== GRANDMASTERS API ==============
 
-export interface Game {
-    _id: string;
-    displayName: string;
-    whitePlayer: string;
-    blackPlayer: string;
-    event?: string;
-    year?: number;
-    result?: string;
+export interface GrandmasterItem {
+    name: string;
+    reelCount: number;
 }
 
-interface GamesResponse {
+interface GrandmastersResponse {
     success: boolean;
-    data: Game[];
+    data: GrandmasterItem[];
     count: number;
 }
 
-interface ReelsByGameResponse {
+interface ReelsByGrandmasterResponse {
     success: boolean;
     data: Reel[];
-    game: Game;
+    grandmaster: { name: string };
     pagination: {
         currentPage: number;
         totalPages: number;
@@ -312,30 +307,30 @@ interface ReelsByGameResponse {
     };
 }
 
-// Get list of available games
-export function useAvailableGames() {
+// Get list of available grandmasters
+export function useAvailableGrandmasters() {
     return useQuery({
-        queryKey: ["available-games"],
+        queryKey: ["available-grandmasters"],
         queryFn: async () => {
-            const response = await apiClient.get<GamesResponse>("/reels/games");
+            const response = await apiClient.get<GrandmastersResponse>("/reels/grandmasters");
             return response.data.data || [];
         },
         staleTime: 60 * 1000,
     });
 }
 
-// Get reels for a specific game
-export function useReelsByGame(gameId: string | null) {
+// Get reels for a specific grandmaster
+export function useReelsByGrandmaster(name: string | null) {
     return useQuery({
-        queryKey: ["reels-by-game", gameId],
+        queryKey: ["reels-by-grandmaster", name],
         queryFn: async () => {
-            const response = await apiClient.get<ReelsByGameResponse>(`/reels/game/${gameId}`);
+            const response = await apiClient.get<ReelsByGrandmasterResponse>(`/reels/grandmaster/${encodeURIComponent(name!)}`);
             return {
                 reels: response.data.data || [],
-                game: response.data.game,
+                grandmaster: response.data.grandmaster,
             };
         },
         staleTime: 60 * 1000,
-        enabled: !!gameId,
+        enabled: !!name,
     });
 }

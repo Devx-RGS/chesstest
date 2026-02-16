@@ -14,11 +14,11 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Film, ArrowLeft, Gamepad2 } from "lucide-react-native";
+import { Film, ArrowLeft, Crown } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { ReelCard } from "@/components/reels/ReelCard";
 import { CommentsBottomSheet } from "@/components/reels/CommentsBottomSheet";
-import { useReels, useLikeReel, useRecordView, useAvailableGames, useReelsByGame, useUserLikedReels, useSaveReel, useUserSavedReels, Game } from "@/services/reelApi";
+import { useReels, useLikeReel, useRecordView, useAvailableGrandmasters, useReelsByGrandmaster, useUserLikedReels, useSaveReel, useUserSavedReels, GrandmasterItem } from "@/services/reelApi";
 import { useReelStore } from "@/stores/reelStore";
 import { useAuthStore } from "@/stores/authStore";
 import { colors } from "@/constants/themes";
@@ -30,21 +30,21 @@ const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get("window");
 // Generate a unique session ID for guests
 const generateSessionId = () => `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-type TabType = "all" | "games";
+type TabType = "all" | "grandmasters";
 
 export default function ReelsScreen() {
     const insets = useSafeAreaInsets();
 
-    // Tab state - simplified to just "all" and "games"
+    // Tab state - "all" and "grandmasters"
     const [selectedTab, setSelectedTab] = useState<TabType>("all");
-    const [selectedGame, setSelectedGame] = useState<string | null>(null);
+    const [selectedGrandmaster, setSelectedGrandmaster] = useState<string | null>(null);
 
-    // Fetch games for picker
-    const { data: games } = useAvailableGames();
+    // Fetch grandmasters for picker
+    const { data: grandmasters } = useAvailableGrandmasters();
 
     // Fetch reels based on selection
     const { data: fetchedReels, isLoading, error, refetch, isRefetching } = useReels();
-    const { data: gameReelsData, isLoading: gameLoading, refetch: refetchGame } = useReelsByGame(selectedGame);
+    const { data: gmReelsData, isLoading: gmLoading, refetch: refetchGm } = useReelsByGrandmaster(selectedGrandmaster);
 
     // Fetch liked reels for authenticated users
     const { data: userLikedReels } = useUserLikedReels();
@@ -101,7 +101,7 @@ export default function ReelsScreen() {
     // Determine which reels to show
     const displayReels = selectedTab === "all"
         ? (storeReels.length > 0 ? storeReels : fetchedReels)
-        : gameReelsData?.reels;
+        : gmReelsData?.reels;
 
     // Sync liked reels from server for authenticated users
     useEffect(() => {
@@ -220,19 +220,19 @@ export default function ReelsScreen() {
     const handleTabChange = (tab: TabType) => {
         Haptics.selectionAsync();
         setSelectedTab(tab);
-        setSelectedGame(null);
+        setSelectedGrandmaster(null);
         setCurrentVisibleIndex(0);
     };
 
-    const handleSelectGame = (gameId: string) => {
+    const handleSelectGrandmaster = (name: string) => {
         Haptics.selectionAsync();
-        setSelectedGame(gameId);
+        setSelectedGrandmaster(name);
         setCurrentVisibleIndex(0);
     };
 
-    const handleBackToGameList = () => {
+    const handleBackToGrandmasterList = () => {
         Haptics.selectionAsync();
-        setSelectedGame(null);
+        setSelectedGrandmaster(null);
     };
 
     const renderItem = useCallback(
@@ -254,7 +254,7 @@ export default function ReelsScreen() {
         [currentVisibleIndex, screenFocused, isLiked, isSaved, likedReelsSet, savedReelsSet, handleLike, handleSave, handleComment, handleShare, handleView]
     );
 
-    const isLoadingReels = selectedTab === "all" ? isLoading : gameLoading;
+    const isLoadingReels = selectedTab === "all" ? isLoading : gmLoading;
 
     if (isLoadingReels && !displayReels?.length) {
         return (
@@ -274,56 +274,54 @@ export default function ReelsScreen() {
         );
     }
 
-    // Show game selection grid when Games tab selected but no game chosen
-    if (selectedTab === "games" && !selectedGame) {
+    // Show grandmaster selection grid when Grandmasters tab selected but no grandmaster chosen
+    if (selectedTab === "grandmasters" && !selectedGrandmaster) {
         return (
             <View style={styles.container}>
                 <StatusBar style="light" />
                 <LinearGradient
                     colors={[colors.background.primary, colors.background.secondary]}
-                    style={styles.gameListContainer}
+                    style={styles.gmListContainer}
                 >
                     {/* Simple Header with back button */}
-                    <View style={[styles.gameListHeader, { paddingTop: insets.top + 10 }]}>
+                    <View style={[styles.gmListHeader, { paddingTop: insets.top + 10 }]}>
                         <TouchableOpacity onPress={() => handleTabChange("all")} style={styles.backButton}>
                             <ArrowLeft size={24} color={colors.text.primary} />
                         </TouchableOpacity>
-                        <Text style={styles.gameListTitle}>Games</Text>
+                        <Text style={styles.gmListTitle}>Grandmasters</Text>
                         <View style={{ width: 40 }} />
                     </View>
 
-                    <Text style={styles.gameListSubtitle}>Select a game to watch reels</Text>
+                    <Text style={styles.gmListSubtitle}>Select a grandmaster to watch reels</Text>
 
-                    {/* Games Grid */}
-                    <ScrollView contentContainerStyle={styles.gameGrid} showsVerticalScrollIndicator={false}>
-                        {games?.map((game: Game) => (
+                    {/* Grandmasters Grid */}
+                    <ScrollView contentContainerStyle={styles.gmGrid} showsVerticalScrollIndicator={false}>
+                        {grandmasters?.map((gm: GrandmasterItem) => (
                             <TouchableOpacity
-                                key={game._id}
-                                style={styles.gameCard}
-                                onPress={() => handleSelectGame(game._id)}
+                                key={gm.name}
+                                style={styles.gmCard}
+                                onPress={() => handleSelectGrandmaster(gm.name)}
                                 activeOpacity={0.8}
                             >
                                 <LinearGradient
                                     colors={[colors.accent.purple + "40", colors.accent.cyan + "20"]}
-                                    style={styles.gameCardGradient}
+                                    style={styles.gmCardGradient}
                                 >
-                                    <Gamepad2 size={28} color={colors.accent.cyan} />
-                                    <Text style={styles.gameCardName} numberOfLines={2}>
-                                        {game.displayName}
+                                    <Crown size={28} color={colors.accent.cyan} />
+                                    <Text style={styles.gmCardName} numberOfLines={2}>
+                                        {gm.name}
                                     </Text>
-                                    {game.event && (
-                                        <Text style={styles.gameCardEvent} numberOfLines={1}>
-                                            {game.event} {game.year ? `(${game.year})` : ""}
-                                        </Text>
-                                    )}
+                                    <Text style={styles.gmCardCount}>
+                                        {gm.reelCount} {gm.reelCount === 1 ? "reel" : "reels"}
+                                    </Text>
                                 </LinearGradient>
                             </TouchableOpacity>
                         ))}
-                        {(!games || games.length === 0) && (
-                            <View style={styles.noGamesContainer}>
-                                <Gamepad2 size={48} color={colors.text.muted} />
-                                <Text style={styles.noGamesText}>No games yet</Text>
-                                <Text style={styles.noGamesSubtext}>Check back later!</Text>
+                        {(!grandmasters || grandmasters.length === 0) && (
+                            <View style={styles.noGmContainer}>
+                                <Crown size={48} color={colors.text.muted} />
+                                <Text style={styles.noGmText}>No grandmasters yet</Text>
+                                <Text style={styles.noGmSubtext}>Check back later!</Text>
                             </View>
                         )}
                     </ScrollView>
@@ -339,9 +337,9 @@ export default function ReelsScreen() {
             {/* Tab Navigation Header */}
             {!isImmersive && (
                 <View style={[styles.tabHeader, { paddingTop: insets.top + 8 }]}>
-                    {/* Back button when viewing game reels */}
-                    {selectedTab === "games" && selectedGame && (
-                        <TouchableOpacity onPress={handleBackToGameList} style={styles.headerBackButton}>
+                    {/* Back button when viewing grandmaster reels */}
+                    {selectedTab === "grandmasters" && selectedGrandmaster && (
+                        <TouchableOpacity onPress={handleBackToGrandmasterList} style={styles.headerBackButton}>
                             <ArrowLeft size={20} color={colors.text.primary} />
                         </TouchableOpacity>
                     )}
@@ -357,29 +355,29 @@ export default function ReelsScreen() {
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            onPress={() => handleTabChange("games")}
-                            style={[styles.tabButton, selectedTab === "games" && styles.tabButtonActive]}
+                            onPress={() => handleTabChange("grandmasters")}
+                            style={[styles.tabButton, selectedTab === "grandmasters" && styles.tabButtonActive]}
                         >
-                            <Gamepad2 size={14} color={selectedTab === "games" ? "#fff" : colors.text.muted} />
-                            <Text style={[styles.tabButtonText, selectedTab === "games" && styles.tabButtonTextActive]}>
-                                Games
+                            <Crown size={14} color={selectedTab === "grandmasters" ? "#fff" : colors.text.muted} />
+                            <Text style={[styles.tabButtonText, selectedTab === "grandmasters" && styles.tabButtonTextActive]}>
+                                Grandmasters
                             </Text>
                         </TouchableOpacity>
                     </ScrollView>
                 </View>
             )}
 
-            {/* Show selected game name as subtitle */}
-            {!isImmersive && selectedTab === "games" && selectedGame && gameReelsData?.game && (
-                <View style={styles.gameSubtitleContainer}>
-                    <Text style={styles.gameSubtitle}>Viewing: {gameReelsData.game.displayName}</Text>
+            {/* Show selected grandmaster name as subtitle */}
+            {!isImmersive && selectedTab === "grandmasters" && selectedGrandmaster && gmReelsData?.grandmaster && (
+                <View style={styles.gmSubtitleContainer}>
+                    <Text style={styles.gmSubtitle}>Viewing: {gmReelsData.grandmaster.name}</Text>
                 </View>
             )}
 
             {(!displayReels || displayReels.length === 0) ? (
                 <View style={styles.emptyContainer}>
                     <Text style={styles.emptyText}>No reels found</Text>
-                    <Text style={styles.emptySubtext}>Try selecting a different game</Text>
+                    <Text style={styles.emptySubtext}>Try selecting a different grandmaster</Text>
                 </View>
             ) : (
                 <FlatList
@@ -401,7 +399,7 @@ export default function ReelsScreen() {
                     refreshControl={
                         <RefreshControl
                             refreshing={isRefetching}
-                            onRefresh={selectedTab === "all" ? refetch : refetchGame}
+                            onRefresh={selectedTab === "all" ? refetch : refetchGm}
                             tintColor={colors.accent.cyan}
                         />
                     }
@@ -508,11 +506,11 @@ const styles = StyleSheet.create({
         color: colors.text.muted,
         fontSize: 14,
     },
-    // Game List View styles
-    gameListContainer: {
+    // Grandmaster List View styles
+    gmListContainer: {
         flex: 1,
     },
-    gameListHeader: {
+    gmListHeader: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
@@ -527,63 +525,63 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
     },
-    gameListTitle: {
+    gmListTitle: {
         color: colors.text.primary,
         fontSize: 20,
         fontWeight: "700",
     },
-    gameListSubtitle: {
+    gmListSubtitle: {
         color: colors.text.muted,
         fontSize: 14,
         textAlign: "center",
         marginTop: 4,
         marginBottom: 12,
     },
-    gameGrid: {
+    gmGrid: {
         flexDirection: "row",
         flexWrap: "wrap",
         paddingHorizontal: 12,
         gap: 12,
         paddingBottom: 100,
     },
-    gameCard: {
+    gmCard: {
         width: (SCREEN_WIDTH - 48) / 2,
         borderRadius: 16,
         overflow: "hidden",
     },
-    gameCardGradient: {
+    gmCardGradient: {
         padding: 20,
         alignItems: "center",
         justifyContent: "center",
         minHeight: 140,
     },
-    gameCardName: {
+    gmCardName: {
         color: colors.text.primary,
         fontSize: 14,
         fontWeight: "600",
         marginTop: 12,
         textAlign: "center",
     },
-    gameCardEvent: {
+    gmCardCount: {
         color: colors.text.muted,
         fontSize: 11,
         marginTop: 4,
         textAlign: "center",
     },
-    noGamesContainer: {
+    noGmContainer: {
         flex: 1,
         width: SCREEN_WIDTH - 32,
         alignItems: "center",
         justifyContent: "center",
         paddingVertical: 60,
     },
-    noGamesText: {
+    noGmText: {
         color: colors.text.primary,
         fontSize: 18,
         fontWeight: "600",
         marginTop: 16,
     },
-    noGamesSubtext: {
+    noGmSubtext: {
         color: colors.text.muted,
         fontSize: 14,
         marginTop: 4,
@@ -593,12 +591,12 @@ const styles = StyleSheet.create({
         marginRight: 4,
         padding: 4,
     },
-    gameSubtitleContainer: {
+    gmSubtitleContainer: {
         paddingHorizontal: 16,
         paddingVertical: 8,
         backgroundColor: colors.glass.light,
     },
-    gameSubtitle: {
+    gmSubtitle: {
         color: colors.accent.cyan,
         fontSize: 14,
         fontWeight: "600",

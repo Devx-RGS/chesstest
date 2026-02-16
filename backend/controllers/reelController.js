@@ -1,5 +1,4 @@
 import Reel from "../models/Reel.js";
-import ChessGame from "../models/ChessGame.js";
 import Comment from "../models/Comment.js";
 
 // GET /reels - Get all published reels (paginated feed)
@@ -66,58 +65,52 @@ export const getRandomReels = async (req, res) => {
     }
 };
 
-// GET /reels/games - Get list of all available games (for game selection UI)
-export const getAvailableGames = async (req, res) => {
+// GET /reels/grandmasters - Get list of all available grandmasters (for grandmaster selection UI)
+export const getAvailableGrandmasters = async (req, res) => {
     try {
-        // Get all games that have at least one published reel
-        const allGameIds = await Reel.distinct("gameId", { status: "published" });
-        // Filter out null/undefined values to prevent ObjectId casting errors
-        const gamesWithReels = allGameIds.filter(id => id != null);
+        // Get distinct grandmaster names from published reels
+        const grandmasterNames = await Reel.distinct("grandmasters", { status: "published" });
 
-        const games = await ChessGame.find({ _id: { $in: gamesWithReels } })
-            .select("whitePlayer blackPlayer event year result")
-            .sort({ year: -1 });
+        // Filter out any null/empty values
+        const validNames = grandmasterNames.filter(name => name && name.trim());
 
-        // Format game names for display (e.g., "Magnus Carlsen vs Viswanathan Anand")
-        const formattedGames = games.map(game => ({
-            _id: game._id,
-            displayName: `${game.whitePlayer} vs ${game.blackPlayer}`,
-            whitePlayer: game.whitePlayer,
-            blackPlayer: game.blackPlayer,
-            event: game.event,
-            year: game.year,
-            result: game.result,
-        }));
+        // Get reel count for each grandmaster
+        const grandmastersWithCounts = await Promise.all(
+            validNames.map(async (name) => {
+                const count = await Reel.countDocuments({
+                    status: "published",
+                    grandmasters: name,
+                });
+                return { name, reelCount: count };
+            })
+        );
+
+        // Sort by name alphabetically
+        grandmastersWithCounts.sort((a, b) => a.name.localeCompare(b.name));
 
         res.json({
             success: true,
-            data: formattedGames,
-            count: formattedGames.length,
+            data: grandmastersWithCounts,
+            count: grandmastersWithCounts.length,
         });
-        console.log(`GET /reels/games - Fetched ${formattedGames.length} available games`);
+        console.log(`GET /reels/grandmasters - Fetched ${grandmastersWithCounts.length} available grandmasters`);
     } catch (err) {
-        console.error("GET /reels/games - Error:", err);
-        res.status(500).json({ error: "Failed to fetch games", message: err.message });
+        console.error("GET /reels/grandmasters - Error:", err);
+        res.status(500).json({ error: "Failed to fetch grandmasters", message: err.message });
     }
 };
 
-// GET /reels/game/:gameId - Get reels for a specific game
-export const getReelsByGame = async (req, res) => {
+// GET /reels/grandmaster/:name - Get reels for a specific grandmaster
+export const getReelsByGrandmaster = async (req, res) => {
     try {
-        const { gameId } = req.params;
+        const { name } = req.params;
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
 
-        // Verify the game exists
-        const game = await ChessGame.findById(gameId);
-        if (!game) {
-            return res.status(404).json({ error: "Game not found" });
-        }
-
         const reels = await Reel.find({
             status: "published",
-            gameId: gameId,
+            grandmasters: name,
         })
             .populate("gameId")
             .sort({ createdAt: -1 })
@@ -126,20 +119,13 @@ export const getReelsByGame = async (req, res) => {
 
         const total = await Reel.countDocuments({
             status: "published",
-            gameId: gameId,
+            grandmasters: name,
         });
 
         res.json({
             success: true,
             data: reels,
-            game: {
-                _id: game._id,
-                displayName: `${game.whitePlayer} vs ${game.blackPlayer}`,
-                whitePlayer: game.whitePlayer,
-                blackPlayer: game.blackPlayer,
-                event: game.event,
-                year: game.year,
-            },
+            grandmaster: { name },
             pagination: {
                 currentPage: page,
                 totalPages: Math.ceil(total / limit),
@@ -147,9 +133,9 @@ export const getReelsByGame = async (req, res) => {
                 hasMore: page * limit < total,
             },
         });
-        console.log(`GET /reels/game/${gameId} - Found ${reels.length} reels for ${game.whitePlayer} vs ${game.blackPlayer}`);
+        console.log(`GET /reels/grandmaster/${name} - Found ${reels.length} reels for ${name}`);
     } catch (err) {
-        console.error("GET /reels/game/:gameId - Error:", err);
+        console.error("GET /reels/grandmaster/:name - Error:", err);
         res.status(500).json({ error: "Failed to fetch reels", message: err.message });
     }
 };

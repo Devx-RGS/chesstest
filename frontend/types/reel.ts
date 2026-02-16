@@ -37,6 +37,7 @@ export interface Reel {
     content: ReelContent;
     engagement: ReelEngagement;
     gameId?: string;
+    grandmasters?: string[];
     interactive?: InteractiveData;
     status: "draft" | "published" | "archived";
     createdAt: string;

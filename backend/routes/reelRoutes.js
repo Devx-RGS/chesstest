@@ -3,8 +3,8 @@ import { verifyToken } from "../middleware/auth.js";
 import {
     getFeed,
     getRandomReels,
-    getAvailableGames,
-    getReelsByGame,
+    getAvailableGrandmasters,
+    getReelsByGrandmaster,
     viewReel,
     getReelStats,
 } from "../controllers/reelController.js";
@@ -31,11 +31,11 @@ router.get("/", getFeed);
 // GET /reels/random - Get random reels (for "Discover" section)
 router.get("/random", getRandomReels);
 
-// GET /reels/games - Get list of available games (for game selection UI)
-router.get("/games", getAvailableGames);
+// GET /reels/grandmasters - Get list of available grandmasters (for grandmaster selection UI)
+router.get("/grandmasters", getAvailableGrandmasters);
 
-// GET /reels/game/:gameId - Get reels for a specific game
-router.get("/game/:gameId", getReelsByGame);
+// GET /reels/grandmaster/:name - Get reels for a specific grandmaster
+router.get("/grandmaster/:name", getReelsByGrandmaster);
 
 // GET /reels/:reelId/stats - Get engagement stats for a reel
 router.get("/:reelId/stats", getReelStats);

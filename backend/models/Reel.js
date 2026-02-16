@@ -17,6 +17,8 @@ const reelSchema = new mongoose.Schema({
     },
   },
 
+  grandmasters: [{ type: String }],
+
   gameId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "ChessGame",
@@ -48,5 +50,6 @@ const reelSchema = new mongoose.Schema({
 
 reelSchema.index({ "content.tags": 1 });
 reelSchema.index({ createdAt: -1 });
+reelSchema.index({ grandmasters: 1 });
 
 export default mongoose.model("Reel", reelSchema);
