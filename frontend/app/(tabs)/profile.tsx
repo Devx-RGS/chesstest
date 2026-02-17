@@ -32,6 +32,7 @@ import {
     Plus,
     User,
     Shield,
+    Bookmark,
 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 
@@ -197,9 +198,12 @@ export default function ProfileScreen() {
                     <GlassCard style={styles.statsCard}>
                         <View style={styles.statsRow}>
                             <View style={styles.statItem}>
-                                <View style={styles.statIconRow}>
-                                    <Heart size={14} color={colors.danger} />
-                                </View>
+                                <LinearGradient
+                                    colors={["#FF6B6B", "#EE5A6F"]}
+                                    style={styles.statIconBg}
+                                >
+                                    <Heart size={18} color="#FFFFFF" fill="#FFFFFF" />
+                                </LinearGradient>
                                 <Text style={styles.statValue}>{stats.reelsLiked}</Text>
                                 <Text style={styles.statLabel}>LIKED</Text>
                             </View>
@@ -207,9 +211,12 @@ export default function ProfileScreen() {
                             <View style={styles.statDivider} />
 
                             <View style={styles.statItem}>
-                                <View style={styles.statIconRow}>
-                                    <TrendingUp size={14} color={colors.success} />
-                                </View>
+                                <LinearGradient
+                                    colors={["#3B82F6", "#6366F1"]}
+                                    style={styles.statIconBg}
+                                >
+                                    <Bookmark size={18} color="#FFFFFF" fill="#FFFFFF" />
+                                </LinearGradient>
                                 <Text style={styles.statValue}>{stats.reelsSaved}</Text>
                                 <Text style={styles.statLabel}>SAVED</Text>
                             </View>
@@ -411,8 +418,13 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: "center",
     },
-    statIconRow: {
-        marginBottom: 4,
+    statIconBg: {
+        width: 40,
+        height: 40,
+        borderRadius: 14,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 8,
     },
     statValue: {
         color: colors.text.primary,
