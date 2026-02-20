@@ -19,7 +19,7 @@ import { Film, ArrowLeft, Crown } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { ReelCard } from "@/components/reels/ReelCard";
 import { CommentsBottomSheet } from "@/components/reels/CommentsBottomSheet";
-import { useReels, useLikeReel, useRecordView, useAvailableGrandmasters, useReelsByGrandmaster, useSaveReel, GrandmasterItem } from "@/services/reelApi";
+import { useReels, useRandomReels, useLikeReel, useRecordView, useAvailableGrandmasters, useReelsByGrandmaster, useSaveReel, GrandmasterItem } from "@/services/reelApi";
 import { useReelStore } from "@/stores/reelStore";
 import { useAuthStore } from "@/stores/authStore";
 import { colors } from "@/constants/themes";
@@ -43,8 +43,9 @@ export default function ReelsScreen() {
     // Fetch grandmasters for picker
     const { data: grandmasters } = useAvailableGrandmasters();
 
-    // Fetch reels based on selection
-    const { data: fetchedReels, isLoading, error, refetch, isRefetching } = useReels();
+    // Fetch random reels for "all" tab, regular reels for grandmasters
+    // Note: usage of useRandomReels ensures we get a randomized feed
+    const { data: fetchedReels, isLoading, error, refetch, isRefetching } = useRandomReels();
     const { data: gmReelsData, isLoading: gmLoading, refetch: refetchGm } = useReelsByGrandmaster(selectedGrandmaster);
 
     const likeMutation = useLikeReel();
@@ -77,6 +78,8 @@ export default function ReelsScreen() {
     const storeReels = useReelStore((s) => s.reels);
     const setReels = useReelStore((s) => s.setReels);
     const setCurrentIndex = useReelStore((s) => s.setCurrentIndex);
+    const targetScrollIndex = useReelStore((s) => s.targetScrollIndex);
+    const clearTargetScrollIndex = useReelStore((s) => s.clearTargetScrollIndex);
     const likeReel = useReelStore((s) => s.likeReel);
     const unlikeReel = useReelStore((s) => s.unlikeReel);
     const saveReel = useReelStore((s) => s.saveReel);
@@ -100,9 +103,30 @@ export default function ReelsScreen() {
     // Sync fetched reels to store
     useEffect(() => {
         if (fetchedReels && fetchedReels.length > 0 && selectedTab === "all") {
+            // Only set reels if we don't have a specific target navigation
+            // or if we do, we want to make sure the target reel is actually in the list.
+            // For now, we'll just set them.
             setReels(fetchedReels);
         }
     }, [fetchedReels, setReels, selectedTab]);
+
+    const flatListRef = useRef<FlatList>(null);
+
+    // Handle scroll to specific index (from Home screen navigation)
+    useEffect(() => {
+        if (targetScrollIndex !== null && flatListRef.current && storeReels.length > 0) {
+            // Small timeout to ensure FlatList is ready
+            setTimeout(() => {
+                flatListRef.current?.scrollToIndex({
+                    index: targetScrollIndex,
+                    animated: false, // Instant jump
+                });
+                setCurrentVisibleIndex(targetScrollIndex);
+                setCurrentIndex(targetScrollIndex);
+                clearTargetScrollIndex(); // Clear it so we don't jump again on re-renders
+            }, 100);
+        }
+    }, [targetScrollIndex, storeReels.length, clearTargetScrollIndex, setCurrentIndex]);
 
     const onViewableItemsChanged = useCallback(
         ({ viewableItems }: { viewableItems: Array<{ index: number | null; item: Reel }> }) => {
@@ -369,6 +393,7 @@ export default function ReelsScreen() {
                 </View>
             ) : (
                 <FlatList
+                    ref={flatListRef}
                     data={displayReels}
                     renderItem={renderItem}
                     keyExtractor={(item) => item._id}
@@ -396,6 +421,14 @@ export default function ReelsScreen() {
                         offset: SCREEN_HEIGHT * index,
                         index,
                     })}
+                    onScrollToIndexFailed={(info) => {
+                        console.warn("Scroll to index failed", info);
+                        // Fallback: just scroll to end or start
+                        const wait = new Promise(resolve => setTimeout(resolve, 500));
+                        wait.then(() => {
+                            flatListRef.current?.scrollToIndex({ index: info.index, animated: false });
+                        });
+                    }}
                 />
             )}
 

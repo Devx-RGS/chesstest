@@ -282,6 +282,39 @@ export function getDifficultyColor(difficulty: string): string {
     }
 }
 
+// ============== RANDOM REELS API ==============
+
+interface RandomReelsResponse {
+    success: boolean;
+    data: Reel[];
+    count: number;
+}
+
+// Fetch random reels from the backend (uses MongoDB $sample)
+async function fetchRandomReels(limit: number = 20): Promise<Reel[]> {
+    try {
+        const response = await apiClient.get<RandomReelsResponse>(`/reels/random?limit=${limit}`);
+        return response.data.data || [];
+    } catch (error) {
+        console.error("Error fetching random reels:", error);
+        // Fallback to regular feed if random endpoint fails
+        return fetchReels();
+    }
+}
+
+// TanStack Query hook for fetching random reels (used by Reels tab)
+export function useRandomReels() {
+    return useQuery({
+        queryKey: ["reels-random"],
+        queryFn: () => fetchRandomReels(20),
+        staleTime: 2 * 60 * 1000, // 2 minutes - shorter so user gets fresh random set
+        gcTime: 10 * 60 * 1000,
+        retry: 2,
+        refetchOnMount: true, // Always get fresh random reels when tab is mounted
+        refetchOnWindowFocus: false,
+    });
+}
+
 // ============== GRANDMASTERS API ==============
 
 export interface GrandmasterItem {

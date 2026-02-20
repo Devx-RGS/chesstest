@@ -8,6 +8,7 @@ import {
     ScrollView,
     ActivityIndicator,
     Alert,
+    Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -56,9 +57,10 @@ export default function UploadReelScreen() {
     const [solutionMoves, setSolutionMoves] = useState("");
     const [challengeRating, setChallengeRating] = useState(3);
 
-    // Video source
+    // Video & Thumbnail source
     const [videoUri, setVideoUri] = useState<string | null>(null);
     const [videoUrl, setVideoUrl] = useState("");
+    const [thumbnailUri, setThumbnailUri] = useState<string | null>(null);
     const [thumbnailUrl, setThumbnailUrl] = useState("");
 
     const [isUploading, setIsUploading] = useState(false);
@@ -72,6 +74,19 @@ export default function UploadReelScreen() {
 
         if (!result.canceled) {
             setVideoUri(result.assets[0].uri);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+    };
+
+    const pickThumbnail = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            quality: 1,
+        });
+
+        if (!result.canceled) {
+            setThumbnailUri(result.assets[0].uri);
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
     };
@@ -93,12 +108,8 @@ export default function UploadReelScreen() {
             return;
         }
 
-        // Validate player names if provided (game categorization is optional but encouraged)
-        if (whitePlayer && !blackPlayer) {
-            Alert.alert("Error", "Please enter both White and Black player names for game categorization.");
-            return;
-        }
-        if (blackPlayer && !whitePlayer) {
+        // Validate player names if provided
+        if ((whitePlayer && !blackPlayer) || (!whitePlayer && blackPlayer)) {
             Alert.alert("Error", "Please enter both White and Black player names for game categorization.");
             return;
         }
@@ -108,28 +119,45 @@ export default function UploadReelScreen() {
 
         try {
             let finalVideoUrl = videoUrl;
+            let finalThumbnailUrl = thumbnailUrl;
 
-            // If local upload, first upload the video file
-            if (uploadMode === "local" && videoUri) {
+            // Handle file uploads (video and/or thumbnail)
+            if (uploadMode === "local" && (videoUri || thumbnailUri)) {
                 const formData = new FormData();
-                formData.append("video", {
-                    uri: videoUri,
-                    name: "upload.mp4",
-                    type: "video/mp4",
-                } as any);
+
+                if (videoUri) {
+                    formData.append("video", {
+                        uri: videoUri,
+                        name: "upload.mp4",
+                        type: "video/mp4",
+                    } as any);
+                }
+
+                if (thumbnailUri) {
+                    const filename = thumbnailUri.split('/').pop() || "thumbnail.jpg";
+                    const match = /\.(\w+)$/.exec(filename);
+                    const type = match ? `image/${match[1]}` : `image`;
+
+                    formData.append("thumbnail", {
+                        uri: thumbnailUri,
+                        name: filename,
+                        type: type,
+                    } as any);
+                }
 
                 const uploadRes = await apiClient.post("/upload", formData, {
                     headers: { "Content-Type": "multipart/form-data" },
                 });
 
-                if (!uploadRes.data.success) throw new Error("Video upload failed");
-                finalVideoUrl = uploadRes.data.url;
+                if (!uploadRes.data.success) throw new Error("Upload failed");
+                if (uploadRes.data.videoUrl) finalVideoUrl = uploadRes.data.videoUrl;
+                if (uploadRes.data.thumbnailUrl) finalThumbnailUrl = uploadRes.data.thumbnailUrl;
             }
 
             // Prepare tags array
             const tagsArray = tags.split(",").map((t) => t.trim()).filter(Boolean);
 
-            // Build interactive object only if enabled and FEN is provided
+            // Build interactive object
             const interactiveData = interactiveEnabled && chessFen.trim() ? {
                 chessFen: chessFen.trim(),
                 triggerTimestamp: triggerTimestamp ? parseFloat(triggerTimestamp) : null,
@@ -139,32 +167,28 @@ export default function UploadReelScreen() {
                 difficultyRating: challengeRating,
             } : undefined;
 
-            // Create reel data - match the schema structure
-            // If white and black players are provided, game will be auto-created on backend
+            // Create reel data
             const reelData = {
                 adminId: "admin",
                 videoData: {
                     video: {
                         url: finalVideoUrl,
-                        thumbnail: thumbnailUrl || "",
+                        thumbnail: finalThumbnailUrl || "",
                     },
                     content: {
                         title,
                         description,
                         tags: tagsArray.length > 0 ? tagsArray : ["chess"],
                         difficulty,
-                        // Include player names for game categorization
                         whitePlayer: whitePlayer || null,
                         blackPlayer: blackPlayer || null,
                     },
                     interactive: interactiveData,
                     status: "published",
-                    // Game info for auto-creation
                     whitePlayer: whitePlayer || null,
                     blackPlayer: blackPlayer || null,
                     event: eventName || null,
                     year: year ? parseInt(year) : null,
-                    // Folder categorization
                     folder: targetGrandmaster ? "grandmaster" : "random",
                     grandmaster: targetGrandmaster || null,
                 },
@@ -306,19 +330,47 @@ export default function UploadReelScreen() {
                     </GlassCard>
                 )}
 
-                {/* Thumbnail URL Input */}
-                <Text style={styles.label}>Thumbnail URL (optional)</Text>
+                {/* Thumbnail Section */}
+                <Text style={styles.label}>Thumbnail (Optional)</Text>
+
+                {uploadMode === "local" && (
+                    <TouchableOpacity style={[styles.videoPicker, { height: 120, marginBottom: 16 }]} onPress={pickThumbnail}>
+                        {thumbnailUri ? (
+                            <View style={{ width: "100%", height: "100%", borderRadius: 12, overflow: "hidden" }}>
+                                <Image
+                                    source={{ uri: thumbnailUri }}
+                                    style={{ width: "100%", height: "100%", resizeMode: "cover" }}
+                                />
+                                <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "rgba(0,0,0,0.6)", padding: 4, alignItems: "center" }}>
+                                    <Text style={{ color: "#fff", fontSize: 10 }}>Tap to change</Text>
+                                </View>
+                            </View>
+                        ) : (
+                            <View style={styles.videoPlaceholder}>
+                                <Upload size={32} color={colors.text.secondary} />
+                                <Text style={styles.videoText}>Select Thumbnail</Text>
+                            </View>
+                        )}
+                    </TouchableOpacity>
+                )}
+
                 <GlassCard variant="dark" style={styles.urlInputCard}>
                     <Link size={20} color={colors.accent.purple} />
                     <TextInput
                         style={styles.urlInput}
-                        placeholder="Paste thumbnail image URL here..."
+                        placeholder={thumbnailUri ? "Thumb uploaded from device" : "Or paste thumbnail image URL..."}
                         placeholderTextColor={colors.text.muted}
                         value={thumbnailUrl}
                         onChangeText={setThumbnailUrl}
                         autoCapitalize="none"
                         keyboardType="url"
+                        editable={!thumbnailUri} // Disable URL input if local file selected
                     />
+                    {thumbnailUri && (
+                        <TouchableOpacity onPress={() => setThumbnailUri(null)}>
+                            <Text style={{ color: colors.danger, fontSize: 12 }}>Clear File</Text>
+                        </TouchableOpacity>
+                    )}
                 </GlassCard>
 
                 {/* Form Fields */}
@@ -873,4 +925,3 @@ const styles = StyleSheet.create({
         gap: 12,
     },
 });
-

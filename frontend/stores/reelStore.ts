@@ -5,6 +5,7 @@ interface ReelState {
     // Current state
     reels: Reel[];
     currentIndex: number;
+    targetScrollIndex: number | null;
     isLoading: boolean;
     error: string | null;
 
@@ -15,6 +16,8 @@ interface ReelState {
     // Actions
     setReels: (reels: Reel[]) => void;
     setCurrentIndex: (index: number) => void;
+    setTargetScrollIndex: (index: number | null) => void;
+    clearTargetScrollIndex: () => void;
     setLoading: (loading: boolean) => void;
     setError: (error: string | null) => void;
     initLikedReels: (reelIds: string[]) => void; // Initialize from server
@@ -32,6 +35,7 @@ interface ReelState {
 export const useReelStore = create<ReelState>((set, get) => ({
     reels: [],
     currentIndex: 0,
+    targetScrollIndex: null,
     isLoading: false,
     error: null,
     likedReels: new Set<string>(),
@@ -40,6 +44,10 @@ export const useReelStore = create<ReelState>((set, get) => ({
     setReels: (reels) => set({ reels }),
 
     setCurrentIndex: (index) => set({ currentIndex: index }),
+
+    setTargetScrollIndex: (index) => set({ targetScrollIndex: index }),
+
+    clearTargetScrollIndex: () => set({ targetScrollIndex: null }),
 
     setLoading: (isLoading) => set({ isLoading }),
 
@@ -129,6 +137,7 @@ export const useReelStore = create<ReelState>((set, get) => ({
     reset: () => set({
         reels: [],
         currentIndex: 0,
+        targetScrollIndex: null,
         isLoading: false,
         error: null,
         likedReels: new Set<string>(),

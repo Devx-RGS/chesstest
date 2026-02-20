@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo } from "react";
+import React, { useRef, useEffect, useMemo, useCallback } from "react";
 import { View, Text, ScrollView, TouchableOpacity, Animated, Image, Dimensions, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -63,16 +63,39 @@ export default function HomeScreen() {
         }
     }, [isAuthenticated]);
 
+    const setTargetScrollIndex = useReelStore((s) => s.setTargetScrollIndex);
+
     const handleWatchReels = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         router.push("/(tabs)/reels");
     };
 
-    // Featured reels (first 3)
-    const featuredReels = reels.slice(0, 3);
+    // Navigate to Reels tab scrolled to a specific reel
+    const handleWatchSpecificReel = useCallback((reelId: string) => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        // Find the index of this reel in the full reels array
+        const index = reels.findIndex((r) => r._id === reelId);
+        if (index >= 0) {
+            setTargetScrollIndex(index);
+        }
+        router.push("/(tabs)/reels");
+    }, [reels, setTargetScrollIndex, router]);
 
-    // Trending reels (next 4)
-    const trendingReels = reels.slice(3, 7);
+    // Randomly sample featured reels (pick 3 random from all reels)
+    const featuredReels = useMemo(() => {
+        if (reels.length <= 3) return reels;
+        const shuffled = [...reels].sort(() => Math.random() - 0.5);
+        return shuffled.slice(0, 3);
+    }, [reels]);
+
+    // Randomly sample trending reels (pick 4 random, excluding featured ones)
+    const trendingReels = useMemo(() => {
+        const featuredIds = new Set(featuredReels.map((r) => r._id));
+        const remaining = reels.filter((r) => !featuredIds.has(r._id));
+        if (remaining.length <= 4) return remaining;
+        const shuffled = [...remaining].sort(() => Math.random() - 0.5);
+        return shuffled.slice(0, 4);
+    }, [reels, featuredReels]);
 
     // Stats - use real streak from API
     const stats = {
@@ -190,7 +213,7 @@ export default function HomeScreen() {
                                 <TouchableOpacity
                                     key={reel._id}
                                     style={styles.featuredCard}
-                                    onPress={handleWatchReels}
+                                    onPress={() => handleWatchSpecificReel(reel._id)}
                                     activeOpacity={0.85}
                                 >
                                     {reel.video?.thumbnail ? (
@@ -236,7 +259,7 @@ export default function HomeScreen() {
                         {trendingReels.map((reel) => (
                             <TouchableOpacity
                                 key={reel._id}
-                                onPress={handleWatchReels}
+                                onPress={() => handleWatchSpecificReel(reel._id)}
                                 activeOpacity={0.7}
                                 style={styles.trendingCard}
                             >

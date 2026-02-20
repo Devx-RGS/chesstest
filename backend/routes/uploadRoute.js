@@ -5,16 +5,24 @@ import fs from "fs";
 
 const router = express.Router();
 
-// Ensure uploads directory exists
+// Ensure directories exist
 const uploadsDir = "uploads";
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-}
+const thumbnailsDir = "public/thumbnails";
+
+[uploadsDir, thumbnailsDir].forEach(dir => {
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
+});
 
 // Configure storage
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        cb(null, uploadsDir);
+        if (file.fieldname === "thumbnail") {
+            cb(null, thumbnailsDir);
+        } else {
+            cb(null, uploadsDir);
+        }
     },
     filename: function (req, file, cb) {
         const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
@@ -24,22 +32,36 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-// Upload Endpoint
-router.post("/", upload.single("video"), (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ success: false, message: "No file uploaded" });
+// Upload Endpoint - Handle both video and thumbnail fields
+const uploadFields = upload.fields([
+    { name: "video", maxCount: 1 },
+    { name: "thumbnail", maxCount: 1 }
+]);
+
+router.post("/", uploadFields, (req, res) => {
+    if (!req.files || Object.keys(req.files).length === 0) {
+        return res.status(400).json({ success: false, message: "No files uploaded" });
     }
 
-    // Construct URL
     const baseUrl = process.env.BASE_URL || "http://localhost:5000";
-    const fileUrl = `${baseUrl}/uploads/${req.file.filename}`;
+    const result = { success: true };
 
-    res.json({
-        success: true,
-        url: fileUrl,
-        filename: req.file.filename,
-        mimetype: req.file.mimetype
-    });
+    // Handle video upload
+    if (req.files.video) {
+        const file = req.files.video[0];
+        result.url = `${baseUrl}/uploads/${file.filename}`; // Backward compatibility for single file response logic in frontend
+        result.videoUrl = `${baseUrl}/uploads/${file.filename}`;
+        result.filename = file.filename;
+        result.mimetype = file.mimetype;
+    }
+
+    // Handle thumbnail upload
+    if (req.files.thumbnail) {
+        const file = req.files.thumbnail[0];
+        result.thumbnailUrl = `${baseUrl}/public/thumbnails/${file.filename}`;
+    }
+
+    res.json(result);
 });
 
 export default router;
