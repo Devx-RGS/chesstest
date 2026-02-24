@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+
+# Expo / Metro
+.expo/
+.expo-shared/
+*.expo/
+packager-info.json
+expo-env.d.ts
+
+# Env files
+.env
+.env.*
+
+# Build artifacts
+dist/
+dist-bundle/
+web-build/
+*.apk
+*.aab
+*.ipa
+build-*.apk
+
+# iOS
+ios/Pods/
+ios/build/
+
+# Android
+android/.gradle/
+android/.idea/
+android/local.properties
+android/app/build/
+android/build/
+
+# Logs & caches
+*.log
+*.tmp
+.DS_Store
+.history/
+.cache/
+.turbo/
+
+# IDE
+.vscode/
+.idea/

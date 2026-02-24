@@ -1,0 +1,2348 @@
+"use client"
+
+import { getPieceComponent, ChessBoard, type DragState, createDecayTimerOverlay, createFrozenOverlay } from "@/app/components"
+import { getSocketInstance } from "@/utils/socketManager"
+import { useRouter } from "expo-router"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Alert, Dimensions, FlatList, Modal, PanResponder, ScrollView, Text, TouchableOpacity, View } from "react-native"
+import { unstable_batchedUpdates } from "react-native"
+import type { Socket } from "socket.io-client"
+import { Chess } from "chess.js"
+import { decayStyles, variantStyles } from "@/app/lib/styles"
+import { BOARD_THEME } from "@/app/lib/constants/boardTheme"
+import { DecayChessGameProps, GameState, DecayState, Move } from "@/app/lib/types/decay"
+import { usePreventEarlyExit } from "@/app/lib/hooks/usePreventEarlyExit"
+import type { SquareOverlay } from "@/app/components"
+const screenWidth = Dimensions.get("window").width
+const screenHeight = Dimensions.get("window").height
+const isTablet = Math.min(screenWidth, screenHeight) > 600
+const isSmallScreen = screenWidth < 380
+
+// Improved responsive sizing for better centering
+const horizontalPadding = isSmallScreen ? 8 : isTablet ? 20 : 12
+const boardSize = screenWidth - horizontalPadding * 2
+const squareSize = boardSize / 8
+
+const decayTimerFontSize = isSmallScreen ? 8 : 10
+const pieceFontSize = squareSize * BOARD_THEME.pieceScale
+
+const INITIAL_DRAG_STATE: DragState = {
+  active: false,
+  from: null,
+  piece: null,
+  x: 0,
+  y: 0,
+}
+
+
+const PIECE_VALUES = {
+  p: 1,
+  P: 1,
+  n: 3,
+  N: 3,
+  b: 3,
+  B: 3,
+  r: 5,
+  R: 5,
+  q: 9,
+  Q: 9,
+  k: 0,
+  K: 0,
+}
+
+const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"]
+const RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"]
+
+// Major pieces that can have decay timers (excluding pawns and king)
+const MAJOR_PIECES = ["q", "r", "b", "n", "Q", "R", "B", "N"]
+
+// Decay timer constants - MUST match server values
+const QUEEN_INITIAL_DECAY_TIME = 25000 // 25 seconds (matches server)
+const MAJOR_PIECE_INITIAL_DECAY_TIME = 20000 // 20 seconds (matches server)
+const DECAY_TIME_INCREMENT = 2000 // +2 seconds per additional move
+
+// Format decay timer in MM:SS format
+const formatDecayTimeMinutes = (milliseconds: number): string => {
+  if (!Number.isFinite(milliseconds) || milliseconds <= 0) return "0:00"
+  const totalSeconds = Math.floor(milliseconds / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`
+}
+
+// FIXED: Move safeTimerValue outside component to prevent re-renders
+function safeTimerValue(val: any): number {
+  const n = Number(val)
+  return isNaN(n) || n === undefined || n === null ? 0 : Math.max(0, n)
+}
+
+export default function DecayChessGame({ initialGameState, userId, onNavigateToMenu }: DecayChessGameProps) {
+  const router = useRouter()
+  const [gameState, setGameState] = useState<GameState>(initialGameState)
+  const [socket, setSocket] = useState<Socket | null>(null)
+  const [selectedSquare, setSelectedSquare] = useState<string | null>(null)
+  const [possibleMoves, setPossibleMoves] = useState<string[]>([])
+  const [isMyTurn, setIsMyTurn] = useState(false)
+  const [playerColor, setPlayerColor] = useState<"white" | "black">("white")
+  const [boardFlipped, setBoardFlipped] = useState(false)
+  const [moveHistory, setMoveHistory] = useState<(string | { san?: string; from?: string; to?: string })[]>([])
+  const [showMoveHistory, setShowMoveHistory] = useState(false)
+  const [promotionModal, setPromotionModal] = useState<{
+    visible: boolean
+    from: string
+    to: string
+    options: string[]
+  } | null>(null)
+  const [dragState, setDragState] = useState<DragState>(INITIAL_DRAG_STATE)
+  const [dragTargetSquare, setDragTargetSquare] = useState<string | null>(null)
+
+  // Decay-specific state - FIXED STRUCTURE
+  const [decayState, setDecayState] = useState<{
+    white: DecayState
+    black: DecayState
+  }>({
+    white: {},
+    black: {},
+  })
+
+  const [frozenPieces, setFrozenPieces] = useState<{
+    white: Set<string>
+    black: Set<string>
+  }>({
+    white: new Set(),
+    black: new Set(),
+  })
+
+  // Track which queens have moved to activate decay system
+  const [queenMoved, setQueenMoved] = useState<{
+    white: boolean
+    black: boolean
+  }>({
+    white: false,
+    black: false,
+  })
+
+  // Game ending state
+  const [showGameEndModal, setShowGameEndModal] = useState(false)
+  const [gameEndMessage, setGameEndMessage] = useState("")
+  const [isWinner, setIsWinner] = useState<boolean | null>(null)
+  const [gameEndDetails, setGameEndDetails] = useState<{
+    reason?: string
+    moveSan?: string
+    moveMaker?: string
+    winner?: string | null
+    winnerName?: string | null
+  }>({})
+
+  // Timer management - FIXED
+  const timerRef = useRef<any>(null)
+  const decayTimerRef = useRef<any>(null)
+  const navigationTimeoutRef = useRef<any>(null)
+
+  usePreventEarlyExit({ socket, isGameActive: gameState.status === "active" })
+
+  const [localTimers, setLocalTimers] = useState<{ white: number; black: number }>({
+    white: safeTimerValue(initialGameState.timeControl.timers.white),
+    black: safeTimerValue(initialGameState.timeControl.timers.black),
+  })
+  const dragStateRef = useRef<DragState>(dragState)
+  
+  // Client-side chess instance for instant move calculation
+  const chessInstanceRef = useRef<Chess | null>(null)
+  
+  // Keep chess instance in sync with game state
+  useEffect(() => {
+    if (gameState.board?.fen) {
+      try {
+        chessInstanceRef.current = new Chess(gameState.board.fen)
+      } catch (error) {
+        console.error("Error creating chess instance:", error)
+      }
+    }
+  }, [gameState.board?.fen])
+
+  useEffect(() => {
+    dragStateRef.current = dragState
+  }, [dragState])
+  
+  // Calculate possible moves client-side instantly
+  const calculatePossibleMovesClient = useCallback((square: string): string[] => {
+    if (!chessInstanceRef.current) return []
+    
+    try {
+      // Get all moves from this square
+      const moves = chessInstanceRef.current.moves({ square, verbose: true }) as any[]
+      
+      // Filter out moves from frozen pieces
+      const frozen = frozenPieces[playerColor]
+      if (frozen.has(square)) {
+        return [] // Piece is frozen, no moves
+      }
+      
+      // Return just the destination squares
+      return moves.map((m: any) => m.to)
+    } catch (error) {
+      console.error("Error calculating moves client-side:", error)
+      return []
+    }
+  }, [frozenPieces, playerColor])
+
+  const lastServerSync = useRef<{
+    white: number
+    black: number
+    activeColor: "white" | "black"
+    timestamp: number
+    turnStartTime: number
+    isFirstMove: boolean
+  }>({
+    white: safeTimerValue(initialGameState.timeControl.timers.white),
+    black: safeTimerValue(initialGameState.timeControl.timers.black),
+    activeColor: initialGameState.board.activeColor,
+    timestamp: Date.now(),
+    turnStartTime: Date.now(),
+    isFirstMove: true,
+  })
+
+  // Helper functions
+  const isQueen = useCallback((piece: string): boolean => {
+    return piece.toLowerCase() === "q"
+  }, [])
+
+  const isMajorPiece = useCallback((piece: string): boolean => {
+    return MAJOR_PIECES.includes(piece)
+  }, [])
+
+  const getPieceColor = useCallback((piece: string): "white" | "black" => {
+    return piece === piece.toUpperCase() ? "white" : "black"
+  }, [])
+
+  const getPieceAt = useCallback(
+    (square: string): string | null => {
+      const fileIndex = FILES.indexOf(square[0])
+      const rankIndex = RANKS.indexOf(square[1])
+      if (fileIndex === -1 || rankIndex === -1) return null
+
+      const fen = gameState.board.fen || gameState.board.position
+      if (!fen) return null
+
+      // Only use the piece placement part (before first space)
+      const piecePlacement = fen.split(" ")[0]
+      const rows = piecePlacement.split("/")
+      if (rows.length !== 8) return null
+
+      const row = rows[rankIndex]
+      let col = 0
+      for (let i = 0; i < row.length; i++) {
+        const c = row[i]
+        if (c >= "1" && c <= "8") {
+          col += Number.parseInt(c)
+        } else {
+          if (col === fileIndex) {
+            return c
+          }
+          col++
+        }
+      }
+      return null
+    },
+    [gameState.board.fen, gameState.board.position],
+  )
+
+  const isPieceOwnedByPlayer = useCallback((piece: string, color: "white" | "black"): boolean => {
+    if (color === "white") {
+      return piece === piece.toUpperCase()
+    } else {
+      return piece === piece.toLowerCase()
+    }
+  }, [])
+
+  const getSquareFromCoords = useCallback(
+    (x: number, y: number): string | null => {
+      if (x < 0 || y < 0 || x > boardSize || y > boardSize) return null
+      const files = boardFlipped ? [...FILES].reverse() : FILES
+      const ranks = boardFlipped ? [...RANKS].reverse() : RANKS
+      const fileIndex = Math.floor(x / squareSize)
+      const rankIndex = Math.floor(y / squareSize)
+      if (fileIndex < 0 || fileIndex > 7 || rankIndex < 0 || rankIndex > 7) return null
+      const file = files[fileIndex]
+      const rank = ranks[rankIndex]
+      if (!file || !rank) return null
+      return `${file}${rank}`
+    },
+    [boardFlipped],
+  )
+
+  const canDragSquare = useCallback(
+    (square: string | null): boolean => {
+      if (!square) return false
+      if (!isMyTurn || gameState.status !== "active") return false
+      const piece = getPieceAt(square)
+      if (!piece) return false
+      if (!isPieceOwnedByPlayer(piece, playerColor)) return false
+      if (frozenPieces[playerColor].has(square)) return false
+      return true
+    },
+    [isMyTurn, gameState.status, getPieceAt, isPieceOwnedByPlayer, playerColor, frozenPieces],
+  )
+
+  const resetDragVisuals = useCallback(() => {
+    setDragState(INITIAL_DRAG_STATE)
+    setDragTargetSquare(null)
+  }, [])
+
+
+  // Utility: Remove decay timers and frozen state for captured pieces
+  // Sync decay state from server - CRITICAL for multi-device sync
+  // RULE: Only ONE decaying piece per player at any time (server is authoritative)
+  const syncDecayStateFromServer = useCallback(
+    (serverGameState: any) => {
+      if (!serverGameState) return
+
+      const serverQueenTimers = serverGameState.board?.queenDecayTimers || serverGameState.gameState?.queenDecayTimers
+      const serverMajorTimers = serverGameState.board?.majorPieceDecayTimers || serverGameState.gameState?.majorPieceDecayTimers
+      const serverFrozenPieces = serverGameState.board?.frozenPieces || serverGameState.gameState?.frozenPieces
+
+      // Sync decay timers from server - ONLY ONE timer per player
+      if (serverQueenTimers || serverMajorTimers) {
+        setDecayState((prev) => {
+          const newState = { white: {} as DecayState, black: {} as DecayState }
+          let hasChanges = false
+
+          ;(["white", "black"] as const).forEach((color) => {
+            const queenTimer = serverQueenTimers?.[color]
+            const majorTimer = serverMajorTimers?.[color]
+
+            // Determine which timer is the ACTIVE one (only ONE can be active)
+            // Priority: Queen timer (if active and not frozen) takes precedence
+            let activeTimer: { square: string; timeRemaining: number; moveCount: number } | null = null
+
+            if (queenTimer?.active && !queenTimer?.frozen && queenTimer?.square) {
+              activeTimer = {
+                square: queenTimer.square,
+                timeRemaining: queenTimer.timeRemaining,
+                moveCount: queenTimer.moveCount || 1,
+              }
+              console.log(`[SYNC] Server says ${color} queen at ${queenTimer.square} is the active decaying piece: ${queenTimer.timeRemaining}ms`)
+            } else if (majorTimer?.active && !majorTimer?.frozen && majorTimer?.square) {
+              activeTimer = {
+                square: majorTimer.square,
+                timeRemaining: majorTimer.timeRemaining,
+                moveCount: majorTimer.moveCount || 1,
+              }
+              console.log(`[SYNC] Server says ${color} major piece at ${majorTimer.square} is the active decaying piece: ${majorTimer.timeRemaining}ms`)
+            }
+
+            // Set ONLY the active timer (if any)
+            if (activeTimer) {
+              const existingTimer = prev[color][activeTimer.square]
+              const timeDiff = existingTimer ? Math.abs(existingTimer.timeLeft - activeTimer.timeRemaining) : Infinity
+              const serverIsLower = existingTimer ? activeTimer.timeRemaining < existingTimer.timeLeft : false
+              const shouldSync = !existingTimer || timeDiff > 1000 || existingTimer.isActive !== true || serverIsLower
+
+              if (shouldSync) {
+                newState[color][activeTimer.square] = {
+                  timeLeft: activeTimer.timeRemaining,
+                  isActive: true,
+                  moveCount: activeTimer.moveCount,
+                  pieceSquare: activeTimer.square,
+                }
+                hasChanges = true
+              } else {
+                // Keep existing timer if no significant change
+                newState[color][activeTimer.square] = existingTimer
+              }
+            }
+            // If no active timer, newState[color] remains empty (no timers)
+          })
+
+          return hasChanges ? newState : prev
+        })
+      }
+
+      // Sync frozen pieces from server - CRITICAL for multi-device sync
+      if (serverFrozenPieces) {
+        setFrozenPieces((prev) => {
+          const newFrozen = {
+            white: new Set<string>(),
+            black: new Set<string>(),
+          }
+
+          ;(["white", "black"] as const).forEach((color) => {
+            const serverFrozen = serverFrozenPieces[color] || []
+            if (Array.isArray(serverFrozen)) {
+              serverFrozen.forEach((square: string) => {
+                // Validate that the piece at this square is actually a queen or major piece
+                const piece = getPieceAt(square)
+                if (piece) {
+                  const pieceType = piece.toLowerCase()
+                  if (pieceType === 'q' || isMajorPiece(piece)) {
+                    newFrozen[color].add(square)
+                  }
+                }
+              })
+            }
+          })
+
+          // Also remove any timers for frozen pieces
+          setDecayState((prevDecay) => {
+            const newDecayState = { white: { ...prevDecay.white }, black: { ...prevDecay.black } }
+            let decayChanged = false
+            
+            ;(["white", "black"] as const).forEach((color) => {
+              // Remove timers for pieces that are now frozen according to server
+              newFrozen[color].forEach((square) => {
+                if (newDecayState[color][square]) {
+                  delete newDecayState[color][square]
+                  decayChanged = true
+                  console.log(`[SYNC] Removed timer for frozen piece ${color} at ${square}`)
+                }
+              })
+            })
+            
+            return decayChanged ? newDecayState : prevDecay
+          })
+
+          // Only update if different
+          const whiteChanged = newFrozen.white.size !== prev.white.size || 
+            Array.from(newFrozen.white).some(sq => !prev.white.has(sq)) ||
+            Array.from(prev.white).some(sq => !newFrozen.white.has(sq))
+          const blackChanged = newFrozen.black.size !== prev.black.size || 
+            Array.from(newFrozen.black).some(sq => !prev.black.has(sq)) ||
+            Array.from(prev.black).some(sq => !newFrozen.black.has(sq))
+
+          if (whiteChanged || blackChanged) {
+            console.log(`[SYNC] Synced frozen pieces - White: ${newFrozen.white.size} (was ${prev.white.size}), Black: ${newFrozen.black.size} (was ${prev.black.size})`)
+            return newFrozen
+          }
+
+          return prev
+        })
+      }
+    },
+    [getPieceAt, isMajorPiece],
+  )
+
+  const cleanupCapturedPieces = useCallback(
+    (newBoard: GameState["board"]) => {
+      // Get all occupied squares from the new board
+      const occupiedSquares = new Set<string>()
+      const fen = newBoard.fen || newBoard.position
+      if (fen) {
+        const piecePlacement = fen.split(" ")[0]
+        const rows = piecePlacement.split("/")
+        for (let rankIdx = 0; rankIdx < 8; rankIdx++) {
+          let fileIdx = 0
+          for (const c of rows[rankIdx]) {
+            if (c >= "1" && c <= "8") {
+              fileIdx += Number.parseInt(c, 10)
+            } else {
+              if (fileIdx < 8) {
+                occupiedSquares.add(`${FILES[fileIdx]}${RANKS[rankIdx]}`)
+                fileIdx++
+              }
+            }
+          }
+        }
+      }
+
+      // Remove decay timers for squares that are no longer occupied
+      setDecayState((prev) => {
+        const newState = { white: { ...prev.white }, black: { ...prev.black } }
+        ;(["white", "black"] as const).forEach((color) => {
+          Object.keys(newState[color]).forEach((sq) => {
+            if (!occupiedSquares.has(sq)) {
+              delete newState[color][sq]
+            }
+          })
+        })
+        return newState
+      })
+
+      // Remove frozen state for squares that are no longer occupied OR contain invalid pieces (pawns, kings)
+      setFrozenPieces((prev) => {
+        const newFrozen = { white: new Set(prev.white), black: new Set(prev.black) }
+        ;(["white", "black"] as const).forEach((color) => {
+          for (const sq of newFrozen[color]) {
+            if (!occupiedSquares.has(sq)) {
+              console.log(`[UNFREEZE] Removing frozen state from ${sq} (${color}) - square no longer occupied`)
+              newFrozen[color].delete(sq)
+            } else {
+              // Validate that the piece at this square is actually a queen or major piece
+              const piece = getPieceAt(sq)
+              if (piece) {
+                const pieceType = piece.toLowerCase()
+                // Only queens and major pieces can be frozen - NOT pawns or kings
+                if (pieceType !== 'q' && !isMajorPiece(piece)) {
+                  console.log(`[UNFREEZE] Removing frozen state from ${sq} (${color}) - piece ${piece} is not a queen or major piece`)
+              newFrozen[color].delete(sq)
+                }
+              }
+            }
+          }
+        })
+        return newFrozen
+      })
+    },
+    [getPieceAt, isMajorPiece], // Dependencies for piece validation
+  )
+
+  // CORE RULE: Only ONE decaying piece per player at any time
+  // Get the current active decaying piece for a player
+  const getActiveDecayingPiece = useCallback(
+    (color: "white" | "black"): { square: string; timer: DecayTimer } | null => {
+      const colorState = decayState[color]
+      for (const [square, timer] of Object.entries(colorState)) {
+        if (timer && timer.isActive) {
+          return { square, timer }
+        }
+      }
+      return null
+    },
+    [decayState],
+  )
+
+  // Check if queen has frozen for a player
+  const hasQueenFrozen = useCallback(
+    (color: "white" | "black"): boolean => {
+      return Array.from(frozenPieces[color]).some((square) => {
+        const piece = getPieceAt(square)
+        return piece && isQueen(piece)
+      })
+    },
+    [frozenPieces, getPieceAt, isQueen],
+  )
+
+  // FIXED: Start decay timer for a piece - ENFORCES ONE DECAYING PIECE RULE
+  const startDecayTimer = useCallback(
+    (square: string, piece: string, isMovingSameDecayingPiece: boolean) => {
+      const pieceColor = getPieceColor(piece)
+      const isQueenPiece = isQueen(piece)
+
+      setDecayState((prev) => {
+        const newState = { ...prev }
+        // CLEAR ALL existing timers for this player - only ONE decaying piece allowed
+        const colorState: DecayState = {}
+
+        // Get the existing timer for this specific square (if moving the same decaying piece)
+        const existingTimer = prev[pieceColor][square]
+
+        let decayTime: number
+        let moveCount: number
+
+        if (isMovingSameDecayingPiece && existingTimer) {
+          // Moving the SAME decaying piece - add +2 seconds (capped at initial time)
+          const maxTime = isQueenPiece ? QUEEN_INITIAL_DECAY_TIME : MAJOR_PIECE_INITIAL_DECAY_TIME
+          decayTime = Math.min(existingTimer.timeLeft + DECAY_TIME_INCREMENT, maxTime)
+          moveCount = existingTimer.moveCount + 1
+          console.log(`[DECAY] Same decaying piece moved: ${piece} at ${square}, +2s -> ${decayTime}ms`)
+        } else {
+          // Starting a NEW decay timer (first queen move or first major piece after queen frozen)
+          decayTime = isQueenPiece ? QUEEN_INITIAL_DECAY_TIME : MAJOR_PIECE_INITIAL_DECAY_TIME
+          moveCount = 1
+          console.log(`[DECAY] NEW decaying piece: ${piece} at ${square}, starting at ${decayTime}ms`)
+        }
+
+        colorState[square] = {
+          timeLeft: decayTime,
+          isActive: true,
+          moveCount,
+          pieceSquare: square,
+        }
+
+        newState[pieceColor] = colorState
+        return newState
+      })
+    },
+    [getPieceColor, isQueen],
+  )
+
+  // FIXED: Freeze a piece when decay timer expires - only queens and major pieces
+  const freezePiece = useCallback((square: string, color: "white" | "black") => {
+    // Validate that the piece at this square is actually a queen or major piece
+    const piece = getPieceAt(square)
+    if (!piece) {
+      console.warn(`[DECAY] Cannot freeze ${square} - no piece found`)
+      return
+    }
+    
+    const pieceType = piece.toLowerCase()
+    // Only queens and major pieces (rook, knight, bishop) can be frozen - NOT pawns or kings
+    if (pieceType !== 'q' && !isMajorPiece(piece)) {
+      console.warn(`[DECAY] Cannot freeze ${square} - piece ${piece} is not a queen or major piece`)
+      return
+    }
+    
+    console.log(`[DECAY] Freezing piece ${piece} at ${square} for ${color}`)
+    setFrozenPieces((prev) => {
+      const newFrozen = { ...prev }
+      newFrozen[color] = new Set([...newFrozen[color], square])
+      return newFrozen
+    })
+
+    // Remove the decay timer when piece is frozen
+    setDecayState((prev) => {
+      const newState = { ...prev }
+      const colorState = { ...newState[color] }
+      delete colorState[square]
+      newState[color] = colorState
+      return newState
+    })
+  }, [getPieceAt, isMajorPiece])
+
+  // FIXED: Move piece in decay state when a move is made
+  const movePieceInDecayState = useCallback(
+    (from: string, to: string, piece: string) => {
+      const pieceColor = getPieceColor(piece)
+      const opponentColor = pieceColor === "white" ? "black" : "white"
+
+      setDecayState((prev) => {
+        const newState = { ...prev }
+        const colorState = { ...newState[pieceColor] }
+
+        // If the piece being moved has a decay timer, move it to the new square
+        if (colorState[from]) {
+          colorState[to] = {
+            ...colorState[from],
+            pieceSquare: to,
+            isActive: true,
+          }
+          delete colorState[from]
+          console.log(`[DECAY] Moved timer from ${from} to ${to} for ${piece}`)
+        }
+
+        newState[pieceColor] = colorState
+        return newState
+      })
+
+      setFrozenPieces((prev) => {
+        const newFrozen = { ...prev }
+
+        // --- FIX: Always remove opponent's frozen state from the destination square ---
+        if (newFrozen[opponentColor].has(to)) {
+          newFrozen[opponentColor] = new Set(newFrozen[opponentColor])
+          newFrozen[opponentColor].delete(to)
+        }
+
+        // Only transfer frozen state if the moving piece was frozen
+        if (newFrozen[pieceColor].has(from)) {
+          newFrozen[pieceColor] = new Set(newFrozen[pieceColor])
+          newFrozen[pieceColor].delete(from)
+          newFrozen[pieceColor].add(to)
+        }
+
+        return newFrozen
+      })
+    },
+    [getPieceColor],
+  )
+
+  // FIXED: Handle decay logic for a move - CORE REQUIREMENT IMPLEMENTATION
+  // RULES:
+  // 1. Only ONE decaying piece per player at any time
+  // 2. Queen phase: First queen move starts 25s timer, queen is the decaying piece
+  // 3. While queen is decaying: moving queen adds +2s, moving ANY other piece does NOTHING
+  // 4. When queen timer hits 0: queen freezes, no more decaying piece
+  // 5. Major-piece phase: After queen frozen, first non-pawn move starts 20s timer
+  // 6. While major piece is decaying: moving THAT piece adds +2s, moving ANY other piece does NOTHING
+  // 7. When major piece timer hits 0: it freezes, no more decaying piece
+  // 8. Repeat 5-7 forever
+  const handleDecayMove = useCallback(
+    (from: string, to: string, piece?: string) => {
+      const movedPiece = piece || getPieceAt(from)
+      if (!movedPiece) return
+
+      const pieceColor = getPieceColor(movedPiece)
+      const opponentColor = pieceColor === "white" ? "black" : "white"
+      const pieceType = movedPiece.toLowerCase()
+      const isPawn = pieceType === "p"
+      const isQueenPiece = isQueen(movedPiece)
+
+      // Handle frozen pieces movement (separate from decay state)
+      setFrozenPieces((prev) => {
+        const newFrozen = { ...prev }
+
+        // Remove opponent's frozen state from destination (if capturing)
+        if (newFrozen[opponentColor].has(to)) {
+          newFrozen[opponentColor] = new Set(newFrozen[opponentColor])
+          newFrozen[opponentColor].delete(to)
+        }
+
+        // Transfer frozen state if the moving piece was frozen
+        if (newFrozen[pieceColor].has(from)) {
+          newFrozen[pieceColor] = new Set(newFrozen[pieceColor])
+          newFrozen[pieceColor].delete(from)
+          newFrozen[pieceColor].add(to)
+        }
+
+        return newFrozen
+      })
+
+      // Use setDecayState to access CURRENT state (avoids stale closure issues)
+      setDecayState((currentDecayState) => {
+        // Check for active decaying piece in CURRENT state
+        const colorState = currentDecayState[pieceColor]
+        let activeDecayingSquare: string | null = null
+        let activeDecayingTimer: DecayTimer | null = null
+        
+        for (const [square, timer] of Object.entries(colorState)) {
+          if (timer && timer.isActive) {
+            activeDecayingSquare = square
+            activeDecayingTimer = timer
+            break
+          }
+        }
+
+        // Check if queen is frozen (check frozenPieces - but we need current value)
+        // We'll use the closure value here since frozenPieces changes less frequently
+        const queenIsFrozen = Array.from(frozenPieces[pieceColor]).some((sq) => {
+          const p = getPieceAt(sq)
+          return p && isQueen(p)
+        })
+
+        // CASE 1: Player has NO active decaying piece
+        if (!activeDecayingSquare) {
+          // CASE 1A: Queen moved (and queen not yet frozen)
+          if (isQueenPiece && !queenIsFrozen) {
+            // Start queen phase - queen becomes the decaying piece
+            setQueenMoved((prev) => ({ ...prev, [pieceColor]: true }))
+            console.log(`[DECAY] QUEEN PHASE START: ${pieceColor}'s queen is now the decaying piece (25s)`)
+            
+            // Return new state with only the queen timer
+            return {
+              ...currentDecayState,
+              [pieceColor]: {
+                [to]: {
+                  timeLeft: QUEEN_INITIAL_DECAY_TIME,
+                  isActive: true,
+                  moveCount: 1,
+                  pieceSquare: to,
+                },
+              },
+            }
+          }
+
+          // CASE 1B: Queen is frozen, moved a non-pawn piece
+          if (queenIsFrozen && !isPawn) {
+            console.log(`[DECAY] MAJOR-PIECE PHASE START: ${pieceColor}'s ${movedPiece} is now the decaying piece (20s)`)
+            
+            // Return new state with only this major piece timer
+            return {
+              ...currentDecayState,
+              [pieceColor]: {
+                [to]: {
+                  timeLeft: MAJOR_PIECE_INITIAL_DECAY_TIME,
+                  isActive: true,
+                  moveCount: 1,
+                  pieceSquare: to,
+                },
+              },
+            }
+          }
+
+          // CASE 1C: Queen not moved yet, or moved a pawn after queen frozen
+          console.log(`[DECAY] No timer change: ${pieceColor} moved ${movedPiece}, conditions not met`)
+          return currentDecayState
+        }
+
+        // CASE 2: Player HAS an active decaying piece
+        // Check if we're moving THE SAME decaying piece (from the 'from' square OR already at 'to' after movePieceInDecayState)
+        const isMovingSameDecayingPiece = activeDecayingSquare === from || activeDecayingSquare === to
+
+        if (isMovingSameDecayingPiece && activeDecayingTimer) {
+          // Moving the decaying piece - add +2 seconds to its timer
+          const maxTime = isQueenPiece ? QUEEN_INITIAL_DECAY_TIME : MAJOR_PIECE_INITIAL_DECAY_TIME
+          const newTime = Math.min(activeDecayingTimer.timeLeft + DECAY_TIME_INCREMENT, maxTime)
+          console.log(`[DECAY] Decaying piece moved: ${movedPiece} ${from} -> ${to}, +2s -> ${newTime}ms`)
+          
+          // Move timer to new square with +2s
+          const newColorState: DecayState = {}
+          newColorState[to] = {
+            timeLeft: newTime,
+            isActive: true,
+            moveCount: activeDecayingTimer.moveCount + 1,
+            pieceSquare: to,
+          }
+          
+          return {
+            ...currentDecayState,
+            [pieceColor]: newColorState,
+          }
+        }
+
+        // CASE 3: Moving a DIFFERENT piece while there's an active decaying piece
+        // CRITICAL: Do NOT start a new timer, do NOT affect existing timer
+        console.log(`[DECAY] Moving different piece (${movedPiece}) while ${activeDecayingSquare} is decaying - NO TIMER CHANGE`)
+        return currentDecayState
+      })
+    },
+    [getPieceAt, getPieceColor, isQueen, frozenPieces],
+  )
+
+  // FIXED: Decay timer countdown effect - syncs with server periodically
+  useEffect(() => {
+    if (decayTimerRef.current) {
+      clearInterval(decayTimerRef.current)
+    }
+
+    if (gameState.status !== "active") {
+      return
+    }
+
+    console.log("[DECAY] Setting up decay timer management")
+
+    decayTimerRef.current = setInterval(() => {
+      setDecayState((prev) => {
+        const newState = { white: {} as DecayState, black: {} as DecayState }
+        let hasChanges = false
+
+        // Handle both players' timers - ENFORCE ONE TIMER PER PLAYER
+        ;(["white", "black"] as const).forEach((color) => {
+          const colorState = prev[color]
+          const isPlayerTurn = gameState.board.activeColor === color
+
+          // Find the SINGLE active timer for this player (should be only one)
+          let activeSquare: string | null = null
+          let activeTimer: DecayTimer | null = null
+
+          // Get all active timers and keep only ONE
+          Object.entries(colorState).forEach(([square, timer]) => {
+            if (timer && timer.isActive) {
+              if (!activeTimer || timer.timeLeft > activeTimer.timeLeft) {
+                // If multiple timers exist, keep the one with most time
+                if (activeSquare && activeTimer) {
+                  console.log(`[DECAY] CLEANUP: Removing extra timer at ${activeSquare} for ${color} (keeping ${square})`)
+                  hasChanges = true
+                }
+                activeSquare = square
+                activeTimer = { ...timer }
+              } else {
+                console.log(`[DECAY] CLEANUP: Removing extra timer at ${square} for ${color} (keeping ${activeSquare})`)
+                hasChanges = true
+              }
+            }
+          })
+
+          // Process the single active timer
+          if (activeSquare && activeTimer) {
+            // Only countdown during player's turn
+            if (isPlayerTurn && activeTimer.timeLeft > 0) {
+              activeTimer.timeLeft = Math.max(0, activeTimer.timeLeft - 100)
+              hasChanges = true
+
+              // Log timer updates for debugging
+              if (activeTimer.timeLeft % 1000 === 0) {
+                console.log(`[DECAY] ${color} ${activeSquare}: ${Math.floor(activeTimer.timeLeft / 1000)}s remaining`)
+              }
+
+              // Freeze piece if timer expires
+              if (activeTimer.timeLeft <= 0) {
+                console.log(`[DECAY] Timer expired for piece at ${activeSquare}`)
+                setTimeout(() => freezePiece(activeSquare!, color), 0)
+              }
+            }
+
+            // Keep only this one timer
+            newState[color][activeSquare] = activeTimer
+          }
+          // If no active timer, newState[color] stays empty
+        })
+
+        return hasChanges ? newState : prev
+      })
+    }, 100) // Update every 100ms
+
+    return () => {
+      if (decayTimerRef.current) {
+        clearInterval(decayTimerRef.current)
+        console.log("[DECAY] Cleared decay timer interval")
+      }
+    }
+  }, [gameState.status, gameState.board.activeColor, freezePiece])
+
+  // Periodic cleanup: Ensure only ONE decaying piece per player (not one queen + one major)
+  useEffect(() => {
+    if (gameState.status !== "active") return
+
+    const cleanupInterval = setInterval(() => {
+      setDecayState((prev) => {
+        const newState = { white: { ...prev.white }, black: { ...prev.black } }
+        let hasChanges = false
+
+        ;(["white", "black"] as const).forEach((color) => {
+          const colorState = newState[color]
+          const allTimers: Array<{ square: string; timer: any; isQueenPiece: boolean }> = []
+
+          // Collect all active timers
+          Object.keys(colorState).forEach((sq) => {
+            const timer = colorState[sq]
+            if (timer && timer.isActive) {
+              const piece = getPieceAt(sq)
+              if (piece) {
+                allTimers.push({ square: sq, timer, isQueenPiece: isQueen(piece) })
+              }
+            }
+          })
+
+          // CRITICAL: Keep only ONE timer total per player
+          // Priority: Queen timer first (queen phase), then major piece with most time
+          if (allTimers.length > 1) {
+            allTimers.sort((a, b) => {
+              if (a.isQueenPiece && !b.isQueenPiece) return -1
+              if (!a.isQueenPiece && b.isQueenPiece) return 1
+              return b.timer.timeLeft - a.timer.timeLeft
+            })
+
+            // Keep only the first timer
+            for (let i = 1; i < allTimers.length; i++) {
+              delete colorState[allTimers[i].square]
+              hasChanges = true
+              console.log(`[CLEANUP] Removed extra timer at ${allTimers[i].square} for ${color} - only ONE decaying piece allowed`)
+            }
+          }
+        })
+
+        return hasChanges ? newState : prev
+      })
+    }, 5000) // Check every 5 seconds
+
+    return () => clearInterval(cleanupInterval)
+  }, [gameState.status, getPieceAt, isQueen, isMajorPiece])
+
+  // Function to handle game ending
+  const handleGameEnd = useCallback(
+    (
+      result: string,
+      winner: string | null,
+      endReason: string,
+      details?: { moveSan?: string; moveMaker?: string; winnerName?: string | null },
+    ) => {
+      console.log("[GAME END] Result:", result, "Winner:", winner, "Reason:", endReason)
+
+      // Stop all timers
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+      }
+      if (decayTimerRef.current) {
+        clearInterval(decayTimerRef.current)
+      }
+
+      setGameState((prevState) => {
+        const previousGameState = prevState.gameState ?? {}
+        return {
+          ...prevState,
+          status: "ended",
+          result: result ?? prevState.result,
+          resultReason: endReason ?? prevState.resultReason,
+          winner,
+          gameState: {
+            ...previousGameState,
+            gameEnded: true,
+            result: result ?? previousGameState.result,
+            endReason: endReason ?? previousGameState.endReason,
+            winner,
+          },
+        }
+      })
+
+      const formatSentence = (text?: string | null) => {
+        if (!text) return ""
+        const trimmed = text.trim()
+        if (!trimmed) return ""
+        return trimmed.charAt(0).toUpperCase() + trimmed.slice(1)
+      }
+
+      // Determine if current player won
+      let playerWon: boolean | null = null
+      let message = ""
+
+      if (result === "checkmate") {
+        if (winner === playerColor) {
+          playerWon = true
+          message = "Checkmate! You won the game!"
+        } else if (winner && winner !== playerColor) {
+          playerWon = false
+          message = "Checkmate! You lost the game."
+        } else {
+          playerWon = null
+          message = "Checkmate occurred."
+        }
+      } else if (result === "timeout") {
+        if (winner === playerColor) {
+          playerWon = true
+          message = "Your opponent ran out of time."
+        } else if (winner && winner !== playerColor) {
+          playerWon = false
+          message = "You ran out of time."
+        } else {
+          playerWon = null
+          message = "Time expired."
+        }
+      } else if (result === "draw") {
+        playerWon = null
+        message = endReason ? formatSentence(endReason) : "Game ended in a draw."
+      } else {
+        playerWon = null
+        message = formatSentence(endReason) || formatSentence(result) || "The game has ended."
+      }
+
+      setIsWinner(playerWon)
+      setGameEndMessage(message)
+      setShowGameEndModal(true)
+      setGameEndDetails({
+        reason: endReason,
+        moveSan: details?.moveSan,
+        moveMaker: details?.moveMaker,
+        winner,
+        winnerName: details?.winnerName,
+      })
+
+      // Disconnect socket after a short delay
+      setTimeout(() => {
+        if (socket) {
+          console.log("[SOCKET] Disconnecting from game")
+          socket.disconnect()
+          setSocket(null)
+        }
+      }, 1000)
+
+      // Auto-navigate to menu after showing the message
+      navigationTimeoutRef.current = setTimeout(() => {
+        setShowGameEndModal(false)
+        if (onNavigateToMenu) {
+          onNavigateToMenu()
+        }
+        router.replace("/(main)/choose")
+      }, 5000)
+    },
+    [playerColor, socket, onNavigateToMenu, router],
+  )
+
+  // Function to manually navigate to menu
+  const navigateToMenu = useCallback(() => {
+    if (navigationTimeoutRef.current) {
+      clearTimeout(navigationTimeoutRef.current)
+    }
+    setShowGameEndModal(false)
+    if (socket) {
+      socket.disconnect()
+      setSocket(null)
+    }
+    if (onNavigateToMenu) {
+      onNavigateToMenu()
+    }
+    router.replace("/(main)/choose")
+  }, [socket, onNavigateToMenu, router])
+
+  // Initialize game
+  useEffect(() => {
+    const gameSocket = getSocketInstance()
+    if (gameSocket) {
+      setSocket(gameSocket)
+      console.log("Connected to game socket")
+    }
+
+    if (!gameSocket) {
+      console.error("Failed to connect to game socket")
+      Alert.alert("Connection Error", "Failed to connect to game socket. Please try again.")
+      return
+    }
+
+    // Initial player color and board orientation
+    const userColor = gameState.userColor[userId]
+    const safePlayerColor = userColor === "white" || userColor === "black" ? userColor : "white"
+    setPlayerColor(safePlayerColor)
+    setBoardFlipped(safePlayerColor === "black")
+    setIsMyTurn(gameState.board.activeColor === safePlayerColor)
+
+    // Sync initial decay state from server
+    syncDecayStateFromServer(gameState)
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+      }
+      if (decayTimerRef.current) {
+        clearInterval(decayTimerRef.current)
+      }
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current)
+      }
+    }
+  }, [gameState.userColor, userId, gameState.board.activeColor, syncDecayStateFromServer, gameState])
+
+  // Update player state when game state changes
+  useEffect(() => {
+    const userColor = gameState.userColor[userId]
+    const safePlayerColor = userColor === "white" || userColor === "black" ? userColor : "white"
+    setPlayerColor(safePlayerColor)
+    setBoardFlipped(safePlayerColor === "black")
+    setIsMyTurn(gameState.board.activeColor === safePlayerColor)
+  }, [gameState, userId])
+
+  // FIXED: Improved timer effect with proper turn-based countdown
+  useEffect(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+    }
+
+    if (gameState.status !== "active" || gameState.gameState?.gameEnded) {
+      return
+    }
+
+    // Get baseTime and increment from backend
+    const baseTime = safeTimerValue(gameState.timeControl?.baseTime)
+    const maxTime = baseTime
+
+    // Clamp timers to maxTime
+    const currentWhiteTime = Math.min(safeTimerValue(gameState.timeControl.timers.white), maxTime)
+    const currentBlackTime = Math.min(safeTimerValue(gameState.timeControl.timers.black), maxTime)
+    
+    // Use the server timer values directly without modification
+    lastServerSync.current = {
+      white: currentWhiteTime,
+      black: currentBlackTime,
+      activeColor: gameState.board.activeColor,
+      timestamp: Date.now(),
+      turnStartTime: gameState.board.turnStartTimestamp || Date.now(),
+      isFirstMove: (gameState.moves?.length || 0) === 0,
+    }
+
+    // Set initial timer values from server
+    setLocalTimers({
+      white: currentWhiteTime,
+      black: currentBlackTime,
+    })
+
+    // Only start countdown if game has moves (not the very first move)
+    if ((gameState.moves?.length || 0) > 0) {
+      timerRef.current = setInterval(() => {
+        setLocalTimers((prev) => {
+          let newWhite = lastServerSync.current.white
+          let newBlack = lastServerSync.current.black
+          const now = Date.now()
+          const elapsed = now - lastServerSync.current.timestamp
+
+          if (lastServerSync.current.activeColor === "white") {
+            newWhite = Math.max(0, Math.min(lastServerSync.current.white - elapsed, maxTime))
+            newBlack = Math.min(lastServerSync.current.black, maxTime)
+          } else {
+            newBlack = Math.max(0, Math.min(lastServerSync.current.black - elapsed, maxTime))
+            newWhite = Math.min(lastServerSync.current.white, maxTime)
+          }
+
+          // End game if timer runs out
+          if (newWhite <= 0 && !gameState.gameState?.gameEnded) {
+            handleGameEnd("timeout", "black", "White ran out of time")
+            return { white: 0, black: newBlack }
+          }
+          if (newBlack <= 0 && !gameState.gameState?.gameEnded) {
+            handleGameEnd("timeout", "white", "Black ran out of time")
+            return { white: newWhite, black: 0 }
+          }
+
+          return { white: newWhite, black: newBlack }
+        })
+      }, 100)
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+      }
+    }
+  }, [
+    gameState.status,
+    gameState.board.activeColor,
+    gameState.timeControl.timers.white,
+    gameState.timeControl.timers.black,
+    gameState.board.turnStartTimestamp,
+    gameState.moves?.length,
+    gameState.board?.moveHistory?.length,
+    gameState.gameState?.gameEnded,
+    handleGameEnd,
+    gameState.timeControl?.baseTime,
+    gameState.timeControl?.increment,
+  ])
+
+  // Socket event handlers (keeping all the existing logic)
+  const handleGameMove = useCallback(
+    (data: any) => {
+      console.log("[MOVE] Move received:", data)
+      if (data && data.gameState) {
+        // NOTE: We do NOT call handleDecayMove here for server-received moves.
+        // The server is the authoritative source for decay state.
+        // syncDecayStateFromServer (called below) will set the correct decay state.
+        // handleDecayMove is only for local optimistic updates.
+
+        // Extract timer values from the response
+        let newWhiteTime = safeTimerValue(gameState.timeControl.timers.white)
+        let newBlackTime = safeTimerValue(gameState.timeControl.timers.black)
+
+        if (data.gameState.timeControl?.timers?.white !== undefined) {
+          newWhiteTime = safeTimerValue(data.gameState.timeControl.timers.white)
+        } else if (data.gameState.board?.whiteTime !== undefined) {
+          newWhiteTime = safeTimerValue(data.gameState.board.whiteTime)
+        }
+
+        if (data.gameState.timeControl?.timers?.black !== undefined) {
+          newBlackTime = safeTimerValue(data.gameState.timeControl.timers.black)
+        } else if (data.gameState.board?.blackTime !== undefined) {
+          newBlackTime = safeTimerValue(data.gameState.board.blackTime)
+        }
+
+        // Update server sync reference with the actual server timer values
+        const now = Date.now()
+        lastServerSync.current = {
+          white: newWhiteTime,
+          black: newBlackTime,
+          activeColor: data.gameState.board.activeColor,
+          timestamp: now,
+          turnStartTime: data.gameState.board.turnStartTimestamp || now,
+          isFirstMove: (data.gameState.moves?.length || 0) === 0,
+        }
+
+        // Update local timers immediately to the server values
+        setLocalTimers({
+          white: newWhiteTime,
+          black: newBlackTime,
+        })
+
+        // Check if the game has ended
+        if (
+          data.gameState.gameState?.gameEnded ||
+          data.gameState.gameState?.checkmate ||
+          data.gameState.status === "ended" ||
+          data.gameState.shouldNavigateToMenu
+        ) {
+          const result = data.gameState.gameState?.result || data.gameState.result || "unknown"
+          let winner = data.gameState.gameState?.winner || data.gameState.winner
+
+          if (result === "checkmate") {
+            const checkmatedPlayer = data.gameState.board.activeColor
+            winner = checkmatedPlayer === "white" ? "black" : "white"
+          }
+
+          const endReason = data.gameState.gameState?.endReason || data.gameState.endReason || result
+          const lastMove = data.gameState.move || data.move
+          const moveMaker = lastMove?.color || "unknown"
+          const moveSan = lastMove?.san || `${lastMove?.from || "?"}->${lastMove?.to || "?"}`
+
+          let winnerName = null
+          if (winner && data.gameState.players && data.gameState.players[winner]) {
+            winnerName = data.gameState.players[winner].username
+          }
+
+          handleGameEnd(result, winner, endReason, { moveSan, moveMaker, winnerName })
+          return
+        }
+
+        setGameState((prevState) => ({
+          ...prevState,
+          ...data.gameState,
+          board: {
+            ...prevState.board,
+            ...data.gameState.board,
+          },
+          timeControl: {
+            ...prevState.timeControl,
+            ...data.gameState.timeControl,
+            timers: {
+              white: newWhiteTime,
+              black: newBlackTime,
+            },
+          },
+          moves: data.gameState.moves || [],
+          lastMove: data.gameState.lastMove,
+          moveCount: data.gameState.moveCount,
+        }))
+
+        // Sync decay state from server (CRITICAL for multi-device sync)
+        syncDecayStateFromServer(data.gameState)
+
+        // Clean up decay/frozen state for captured pieces
+        cleanupCapturedPieces(data.gameState.board)
+
+        // Update local timers
+        setLocalTimers({
+          white: newWhiteTime,
+          black: newBlackTime,
+        })
+
+        setMoveHistory(data.gameState.moves || [])
+        setSelectedSquare(null)
+        setPossibleMoves([])
+
+        // Update turn state
+        const userColor = data.gameState.userColor ? data.gameState.userColor[userId] : playerColor
+        const activeColor = data.gameState.board.activeColor
+        const newIsMyTurn = activeColor === userColor
+        setIsMyTurn(newIsMyTurn)
+      }
+    },
+    [
+      getPieceAt,
+      gameState.timeControl.timers,
+      handleGameEnd,
+      userId,
+      playerColor,
+      cleanupCapturedPieces,
+      syncDecayStateFromServer,
+    ],
+  )
+
+  const handlePossibleMoves = useCallback((data: { square: string; moves: any[] }) => {
+    // Only update if this is for the currently selected square
+    // This ensures server response doesn't override instant client calculation unnecessarily
+    if (selectedSquareRef.current !== data.square) {
+      return // Ignore if not for current selection
+    }
+    
+    console.log("Possible moves (raw):", data.moves)
+    let moves: string[] = []
+
+    if (Array.isArray(data.moves) && data.moves.length > 0) {
+      if (typeof data.moves[0] === "object" && data.moves[0].to) {
+        moves = data.moves.map((m: any) => m.to)
+      } else if (typeof data.moves[0] === "string" && data.moves[0].length === 4) {
+        moves = data.moves.map((m: string) => m.slice(2, 4))
+      } else if (typeof data.moves[0] === "string") {
+        moves = data.moves
+      }
+    }
+
+    console.log("Possible moves (dest squares):", moves)
+    // Update with server response (may have decay-specific filtering)
+    possibleMovesRef.current = moves
+    setPossibleMoves(moves)
+  }, [])
+
+  const handleGameStateUpdate = useCallback(
+    (data: any) => {
+      console.log("Game state update:", data)
+      if (data && data.gameState) {
+        // Check for game ending
+        if (
+          data.gameState.gameState?.gameEnded ||
+          data.gameState.status === "ended" ||
+          data.gameState.shouldNavigateToMenu
+        ) {
+          const result = data.gameState.gameState?.result || data.gameState.result || "unknown"
+          const winner = data.gameState.gameState?.winner || data.gameState.winner
+          const endReason = data.gameState.gameState?.endReason || data.gameState.endReason || result
+          handleGameEnd(result, winner, endReason)
+          return
+        }
+
+        // Update server sync reference
+        lastServerSync.current = {
+          white: safeTimerValue(data.gameState.timeControl?.timers?.white || data.gameState.board?.whiteTime),
+          black: safeTimerValue(data.gameState.timeControl?.timers?.black || data.gameState.board?.blackTime),
+          activeColor: data.gameState.board.activeColor,
+          timestamp: Date.now(),
+          turnStartTime: data.gameState.board.turnStartTimestamp || Date.now(),
+          isFirstMove: (data.gameState.moves?.length || data.gameState.board?.moveHistory?.length || 0) === 0,
+        }
+
+        setGameState((prevState) => ({
+          ...prevState,
+          ...data.gameState,
+          timeControl: {
+            ...prevState.timeControl,
+            ...data.gameState.timeControl,
+            timers: {
+              white: safeTimerValue(data.gameState.timeControl?.timers?.white || data.gameState.board?.whiteTime),
+              black: safeTimerValue(data.gameState.timeControl?.timers?.black || data.gameState.board?.blackTime),
+            },
+          },
+        }))
+
+        // Sync decay state from server (CRITICAL for multi-device sync)
+        syncDecayStateFromServer(data.gameState)
+
+        setIsMyTurn(data.gameState.board.activeColor === playerColor)
+      }
+    },
+    [handleGameEnd, playerColor, syncDecayStateFromServer],
+  )
+
+  const handleTimerUpdate = useCallback(
+    (data: any) => {
+      console.log("Timer update:", data)
+
+      // Check for game ending in timer update
+      if (data.gameEnded || data.shouldNavigateToMenu) {
+        const result = data.endReason || "timeout"
+        const winner = data.winner
+        handleGameEnd(result, winner, result)
+        return
+      }
+
+      // Handle different timer update formats from server
+      let whiteTime: number
+      let blackTime: number
+
+      if (data.timers && typeof data.timers === "object") {
+        whiteTime = safeTimerValue(data.timers.white)
+        blackTime = safeTimerValue(data.timers.black)
+      } else if (typeof data.white === "number" && typeof data.black === "number") {
+        whiteTime = safeTimerValue(data.white)
+        blackTime = safeTimerValue(data.black)
+      } else {
+        whiteTime = safeTimerValue(data.white ?? data.timers?.white)
+        blackTime = safeTimerValue(data.black ?? data.timers?.black)
+      }
+
+      // Update server sync reference
+      lastServerSync.current = {
+        white: whiteTime,
+        black: blackTime,
+        activeColor: gameState.board.activeColor,
+        timestamp: Date.now(),
+        turnStartTime: Date.now(),
+        isFirstMove: (gameState.moves?.length || gameState.board?.moveHistory?.length || 0) === 0,
+      }
+
+      // Update local timers immediately
+      setLocalTimers({
+        white: whiteTime,
+        black: blackTime,
+      })
+
+      setGameState((prevState) => {
+        const updatedState = {
+        ...prevState,
+        timeControl: {
+          ...prevState.timeControl,
+          timers: {
+            white: whiteTime,
+            black: blackTime,
+          },
+        },
+        }
+        
+        // Sync decay state if timer update includes decay timer info
+        if (data.gameState || data.board) {
+          syncDecayStateFromServer(data.gameState || { board: data.board })
+        }
+        
+        return updatedState
+      })
+    },
+    [handleGameEnd, gameState.board.activeColor, gameState.moves?.length, gameState.board?.moveHistory?.length, syncDecayStateFromServer],
+  )
+
+  const handleGameEndEvent = useCallback(
+    (data: any) => {
+      console.log("Game end event received:", data)
+      const result = data.gameState?.gameState?.result || data.gameState?.result || data.result || "unknown"
+      const winner = data.gameState?.gameState?.winner || data.gameState?.winner || data.winner
+      const endReason = data.gameState?.gameState?.endReason || data.gameState?.endReason || data.endReason || result
+      handleGameEnd(result, winner, endReason)
+    },
+    [handleGameEnd],
+  )
+
+  const handleGameError = useCallback((data: any) => {
+    console.log("Game error:", data)
+    Alert.alert("Error", data.message || data.error || "An error occurred")
+  }, [])
+
+  const handleGameWarning = useCallback((data: any) => {
+    console.warn("[GAME WARNING] Received warning:", data)
+    setGameState((prev) => ({ ...prev, gameState: data.gameState }))
+    Alert.alert("Game Warning", data.message || "An unexpected warning occurred.")
+  }, [])
+
+  // Clear possible moves when it's no longer the player's turn
+  useEffect(() => {
+    if (!isMyTurn) {
+      setPossibleMoves([])
+      setSelectedSquare(null)
+    }
+  }, [isMyTurn])
+
+  // Set up socket event listeners
+  useEffect(() => {
+    if (!socket) return
+
+    socket.on("game:move", handleGameMove)
+    socket.on("game:possibleMoves", handlePossibleMoves)
+    socket.on("game:gameState", handleGameStateUpdate)
+    socket.on("game:timer", handleTimerUpdate)
+    socket.on("game:end", handleGameEndEvent)
+    socket.on("game:error", handleGameError)
+    socket.on("game:warning", handleGameWarning)
+
+    return () => {
+      socket.off("game:move", handleGameMove)
+      socket.off("game:possibleMoves", handlePossibleMoves)
+      socket.off("game:gameState", handleGameStateUpdate)
+      socket.off("game:timer", handleTimerUpdate)
+      socket.off("game:end", handleGameEndEvent)
+      socket.off("game:error", handleGameError)
+      socket.off("game:warning", handleGameWarning)
+    }
+  }, [
+    socket,
+    handleGameMove,
+    handlePossibleMoves,
+    handleGameStateUpdate,
+    handleTimerUpdate,
+    handleGameEndEvent,
+    handleGameError,
+    handleGameWarning,
+  ])
+
+  // Game interaction functions
+  const requestPossibleMoves = useCallback(
+    (square: string) => {
+      if (!socket) return
+      socket.emit("game:getPossibleMoves", { square })
+    },
+    [socket],
+  )
+
+  const makeMove = useCallback(
+    (move: Move) => {
+      console.log("[DEBUG] Attempting to make move", move, "isMyTurn:", isMyTurn)
+      if (!socket || !isMyTurn) {
+        console.log("[DEBUG] Not emitting move: socket or isMyTurn false")
+        return
+      }
+
+      // Check if the piece is frozen
+      if (frozenPieces[playerColor].has(move.from)) {
+        Alert.alert("Frozen Piece", "This piece is frozen due to decay and cannot be moved!")
+        return
+      }
+
+      // Immediately update local state to show move was made (optimistic update)
+      setIsMyTurn(false)
+      setSelectedSquare(null)
+      setPossibleMoves([])
+
+      socket.emit("game:makeMove", {
+        move: { from: move.from, to: move.to, promotion: move.promotion },
+        timestamp: Date.now(),
+      })
+
+      console.log("[DEBUG] Move emitted:", { from: move.from, to: move.to, promotion: move.promotion })
+    },
+    [socket, isMyTurn, frozenPieces, playerColor],
+  )
+
+  const restoreSelectionToOrigin = useCallback(() => {
+    const originSquare = dragStateRef.current.from
+    if (originSquare) {
+      setSelectedSquare(originSquare)
+      setDragTargetSquare(originSquare)
+    } else {
+      setSelectedSquare(null)
+      setPossibleMoves([])
+    }
+  }, [])
+
+  const startDrag = useCallback(
+    (square: string, piece: string, x: number, y: number) => {
+      const boundedX = Math.min(Math.max(x, 0), boardSize)
+      const boundedY = Math.min(Math.max(y, 0), boardSize)
+      setDragState({
+        active: true,
+        from: square,
+        piece,
+        x: boundedX,
+        y: boundedY,
+      })
+      setDragTargetSquare(square)
+      setSelectedSquare(square)
+      requestPossibleMoves(square)
+    },
+    [requestPossibleMoves],
+  )
+
+  const finishDragMove = useCallback(
+    (targetSquare: string | null) => {
+      const originSquare = dragStateRef.current.from
+      resetDragVisuals()
+
+      if (!originSquare) {
+        setSelectedSquare(null)
+        setPossibleMoves([])
+        return
+      }
+
+      if (!targetSquare || originSquare === targetSquare) {
+        restoreSelectionToOrigin()
+        return
+      }
+
+      if (possibleMoves.includes(targetSquare)) {
+        const piece = getPieceAt(originSquare)
+        const isPromotion =
+          piece &&
+          ((piece.toLowerCase() === "p" && playerColor === "white" && targetSquare[1] === "8") ||
+            (piece.toLowerCase() === "p" && playerColor === "black" && targetSquare[1] === "1"))
+
+        if (isPromotion) {
+          const options = ["q", "r", "b", "n"]
+          setPromotionModal({ visible: true, from: originSquare, to: targetSquare, options })
+          return
+        }
+
+        makeMove({ from: originSquare, to: targetSquare })
+        setSelectedSquare(null)
+        setPossibleMoves([])
+      } else {
+        restoreSelectionToOrigin()
+      }
+    },
+    [getPieceAt, playerColor, makeMove, possibleMoves, resetDragVisuals, restoreSelectionToOrigin],
+  )
+
+  const abortDrag = useCallback(() => {
+    resetDragVisuals()
+    restoreSelectionToOrigin()
+  }, [resetDragVisuals, restoreSelectionToOrigin])
+
+  // Refs to track state for immediate response without waiting for state updates
+  const selectedSquareRef = useRef<string | null>(null)
+  const possibleMovesRef = useRef<string[]>([])
+  
+  useEffect(() => {
+    selectedSquareRef.current = selectedSquare
+  }, [selectedSquare])
+  
+  useEffect(() => {
+    possibleMovesRef.current = possibleMoves
+  }, [possibleMoves])
+
+  // Immediate touch handler for zero-latency piece selection
+  const handleSquareTouchStart = useCallback(
+    (square: string, event: any) => {
+      // Don't interfere if dragging is active
+      if (dragStateRef.current.active) return
+      
+      // Use refs for immediate response without waiting for state
+      const currentSelected = selectedSquareRef.current
+      const currentPossibleMoves = possibleMovesRef.current
+      
+      // Immediate toggle: if same square, deselect instantly
+      if (currentSelected === square) {
+        // Update refs immediately for next touch
+        selectedSquareRef.current = null
+        possibleMovesRef.current = []
+        // Update state (non-blocking)
+        setSelectedSquare(null)
+        setPossibleMoves([])
+        return
+      }
+
+      // Immediate selection: if clicking on a possible move, execute it
+      if (currentSelected && currentPossibleMoves.includes(square)) {
+        const piece = getPieceAt(currentSelected)
+        const isPromotion =
+          piece &&
+          ((piece.toLowerCase() === "p" && playerColor === "white" && square[1] === "8") ||
+            (piece.toLowerCase() === "p" && playerColor === "black" && square[1] === "1"))
+
+        if (isPromotion) {
+          const options = ["q", "r", "b", "n"]
+          // Update refs immediately
+          selectedSquareRef.current = null
+          possibleMovesRef.current = []
+          // Update state
+          setPromotionModal({ visible: true, from: currentSelected, to: square, options })
+          setSelectedSquare(null)
+          setPossibleMoves([])
+          return
+        }
+
+        // Execute move immediately - update refs first
+        selectedSquareRef.current = null
+        possibleMovesRef.current = []
+        // Then update state and make move (non-blocking)
+        setSelectedSquare(null)
+        setPossibleMoves([])
+        // Make move asynchronously to not block UI
+        requestAnimationFrame(() => {
+          makeMove({ from: currentSelected, to: square })
+        })
+        return
+      }
+
+      // Immediate piece selection: check if it's a valid piece to select
+      const piece = getPieceAt(square)
+      if (isMyTurn && piece && isPieceOwnedByPlayer(piece, playerColor)) {
+        // Check if frozen
+        if (frozenPieces[playerColor].has(square)) {
+          Alert.alert("Frozen Piece", "This piece is frozen due to decay and cannot be moved!")
+          return
+        }
+
+        // Calculate moves client-side instantly for immediate visual feedback
+        const instantMoves = calculatePossibleMovesClient(square)
+        possibleMovesRef.current = instantMoves
+        
+        // Update refs immediately for instant visual feedback
+        selectedSquareRef.current = square
+        // Update state immediately with client-calculated moves (non-blocking)
+        setSelectedSquare(square)
+        setPossibleMoves(instantMoves)
+        
+        // Still request from server for validation/updates (async, non-blocking)
+        requestAnimationFrame(() => {
+          requestPossibleMoves(square)
+        })
+      } else {
+        // Deselect immediately if clicking empty square or opponent piece
+        selectedSquareRef.current = null
+        possibleMovesRef.current = []
+        setSelectedSquare(null)
+        setPossibleMoves([])
+      }
+    },
+    [
+      isMyTurn,
+      playerColor,
+      frozenPieces,
+      makeMove,
+      requestPossibleMoves,
+      getPieceAt,
+      isPieceOwnedByPlayer,
+      calculatePossibleMovesClient,
+    ],
+  )
+
+  // Track touch start for immediate selection
+  const touchStartSquareRef = useRef<string | null>(null)
+  const touchStartTimeRef = useRef<number>(0)
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        // Capture immediately for any square to enable instant selection
+        onStartShouldSetPanResponder: (evt) => {
+          const square = getSquareFromCoords(evt.nativeEvent.locationX, evt.nativeEvent.locationY)
+          if (!square) return false
+          
+          // Store touch start info for immediate selection in Grant
+          touchStartSquareRef.current = square
+          touchStartTimeRef.current = Date.now()
+          
+          // Return true to capture - we'll handle selection in Grant
+          return true
+        },
+        onMoveShouldSetPanResponder: (evt, gestureState) => {
+          // If already dragging, continue
+          if (dragStateRef.current.active) return true
+          
+          // Only start dragging if movement exceeds threshold
+          if (Math.abs(gestureState.dx) < 4 && Math.abs(gestureState.dy) < 4) return false
+          const square = getSquareFromCoords(evt.nativeEvent.locationX, evt.nativeEvent.locationY)
+          return canDragSquare(square)
+        },
+        onPanResponderGrant: (evt) => {
+          const { locationX, locationY } = evt.nativeEvent
+          const square = getSquareFromCoords(locationX, locationY) || touchStartSquareRef.current
+          if (!square) return
+          
+          const piece = getPieceAt(square)
+          const currentSelected = selectedSquareRef.current
+          const currentPossibleMoves = possibleMovesRef.current
+          
+          // Handle immediate selection/move - no delay
+          if (currentSelected === square) {
+            // Deselect immediately
+            selectedSquareRef.current = null
+            possibleMovesRef.current = []
+            setSelectedSquare(null)
+            setPossibleMoves([])
+          } else if (currentSelected && currentPossibleMoves.includes(square)) {
+            // Immediate move execution
+            const fromSquare = currentSelected
+            const fromPiece = getPieceAt(fromSquare)
+            const isPromotion =
+              fromPiece &&
+              ((fromPiece.toLowerCase() === "p" && playerColor === "white" && square[1] === "8") ||
+                (fromPiece.toLowerCase() === "p" && playerColor === "black" && square[1] === "1"))
+
+            if (isPromotion) {
+              const options = ["q", "r", "b", "n"]
+              selectedSquareRef.current = null
+              possibleMovesRef.current = []
+              setPromotionModal({ visible: true, from: fromSquare, to: square, options })
+              setSelectedSquare(null)
+              setPossibleMoves([])
+            } else {
+              selectedSquareRef.current = null
+              possibleMovesRef.current = []
+              setSelectedSquare(null)
+              setPossibleMoves([])
+              // Make move immediately
+              makeMove({ from: fromSquare, to: square })
+            }
+          } else if (isMyTurn && piece && isPieceOwnedByPlayer(piece, playerColor)) {
+            // Select piece immediately (if draggable, dragging will start in Move if movement detected)
+            if (!frozenPieces[playerColor].has(square)) {
+              // Calculate moves client-side instantly
+              const instantMoves = calculatePossibleMovesClient(square)
+              possibleMovesRef.current = instantMoves
+              selectedSquareRef.current = square
+              setSelectedSquare(square)
+              setPossibleMoves(instantMoves)
+              // Still request from server for validation (async, non-blocking)
+              requestAnimationFrame(() => {
+                requestPossibleMoves(square)
+              })
+            }
+          } else {
+            // Deselect
+            selectedSquareRef.current = null
+            possibleMovesRef.current = []
+            setSelectedSquare(null)
+            setPossibleMoves([])
+          }
+        },
+        onPanResponderMove: (evt, gestureState) => {
+          // If movement detected and we have a draggable piece, start drag
+          if (!dragStateRef.current.active && (Math.abs(gestureState.dx) > 2 || Math.abs(gestureState.dy) > 2)) {
+            const square = touchStartSquareRef.current
+            if (square) {
+              const piece = getPieceAt(square)
+              if (piece && canDragSquare(square)) {
+                // Cancel selection and start drag
+                selectedSquareRef.current = null
+                possibleMovesRef.current = []
+                setSelectedSquare(null)
+                setPossibleMoves([])
+                startDrag(square, piece, evt.nativeEvent.locationX, evt.nativeEvent.locationY)
+              }
+            }
+          }
+          
+          if (!dragStateRef.current.active) return
+          const { locationX, locationY } = evt.nativeEvent
+          const boundedX = Math.min(Math.max(locationX, 0), boardSize)
+          const boundedY = Math.min(Math.max(locationY, 0), boardSize)
+          setDragState((prev) => (prev.active ? { ...prev, x: boundedX, y: boundedY } : prev))
+          const hoverSquare = getSquareFromCoords(boundedX, boundedY)
+          setDragTargetSquare(hoverSquare)
+        },
+        onPanResponderRelease: (evt) => {
+          const targetSquare = getSquareFromCoords(evt.nativeEvent.locationX, evt.nativeEvent.locationY)
+          finishDragMove(targetSquare)
+        },
+        onPanResponderTerminate: () => {
+          abortDrag()
+        },
+      }),
+    [
+      abortDrag,
+      canDragSquare,
+      finishDragMove,
+      getPieceAt,
+      getSquareFromCoords,
+      startDrag,
+      isMyTurn,
+      playerColor,
+      frozenPieces,
+      makeMove,
+      requestPossibleMoves,
+      isPieceOwnedByPlayer,
+      calculatePossibleMovesClient,
+    ],
+  )
+
+  const handleSquarePress = useCallback(
+    (square: string) => {
+      if (selectedSquare === square) {
+        // Deselect if clicking the same square
+        setSelectedSquare(null)
+        setPossibleMoves([])
+        return
+      }
+
+      if (selectedSquare && possibleMoves.includes(square)) {
+        // Check if this move is a promotion
+        const piece = getPieceAt(selectedSquare)
+        const isPromotion =
+          piece &&
+          ((piece.toLowerCase() === "p" && playerColor === "white" && square[1] === "8") ||
+            (piece.toLowerCase() === "p" && playerColor === "black" && square[1] === "1"))
+
+        if (isPromotion) {
+          const options = ["q", "r", "b", "n"] // queen, rook, bishop, knight
+          setPromotionModal({ visible: true, from: selectedSquare, to: square, options })
+          return
+        }
+
+        makeMove({ from: selectedSquare, to: square })
+        setSelectedSquare(null)
+        setPossibleMoves([])
+        return
+      }
+
+      // Only allow selecting a piece if it's the player's turn and the piece belongs to them
+      const piece = getPieceAt(square)
+      if (isMyTurn && piece && isPieceOwnedByPlayer(piece, playerColor)) {
+        // Check if the piece is frozen
+        if (frozenPieces[playerColor].has(square)) {
+          Alert.alert("Frozen Piece", "This piece is frozen due to decay and cannot be moved!")
+          return
+        }
+
+        setSelectedSquare(square)
+        requestPossibleMoves(square)
+      } else {
+        setSelectedSquare(null)
+        setPossibleMoves([])
+      }
+    },
+    [
+      selectedSquare,
+      possibleMoves,
+      isMyTurn,
+      playerColor,
+      frozenPieces,
+      makeMove,
+      requestPossibleMoves,
+      getPieceAt,
+      isPieceOwnedByPlayer,
+    ],
+  )
+
+  // Handle promotion selection
+  const handlePromotionSelect = useCallback(
+    (promotion: string) => {
+      if (promotionModal) {
+        makeMove({ from: promotionModal.from, to: promotionModal.to, promotion })
+        setPromotionModal(null)
+        setSelectedSquare(null)
+        setPossibleMoves([])
+      }
+    },
+    [promotionModal, makeMove],
+  )
+
+  // Correct FEN parsing for piece lookup
+  const formatTime = useCallback((milliseconds: number): string => {
+    if (!Number.isFinite(milliseconds) || milliseconds <= 0) return "0:00"
+    const totalSeconds = Math.floor(milliseconds / 1000)
+    const minutes = Math.floor(totalSeconds / 60)
+    const seconds = totalSeconds % 60
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`
+  }, [])
+
+  // Calculate material advantage
+  const calculateMaterialAdvantage = useCallback(() => {
+    const capturedPieces = gameState.board.capturedPieces || { white: [], black: [] }
+    let whiteAdvantage = 0
+    let blackAdvantage = 0
+
+    capturedPieces.white.forEach((piece) => {
+      whiteAdvantage += PIECE_VALUES[piece.toLowerCase() as keyof typeof PIECE_VALUES] || 0
+    })
+
+    capturedPieces.black.forEach((piece) => {
+      blackAdvantage += PIECE_VALUES[piece.toUpperCase() as keyof typeof PIECE_VALUES] || 0
+    })
+
+    return { white: whiteAdvantage, black: blackAdvantage }
+  }, [gameState.board.capturedPieces])
+
+  const renderCapturedPieces = useCallback(
+    (color: "white" | "black") => {
+      const capturedPieces = gameState.board.capturedPieces || { white: [], black: [] }
+      const pieces = capturedPieces[color] || []
+      if (pieces.length === 0) return null
+
+      // Group pieces by type and count them
+      const pieceCounts: { [key: string]: number } = {}
+      pieces.forEach((piece) => {
+        const pieceType = color === "white" ? piece.toLowerCase() : piece.toUpperCase()
+        pieceCounts[pieceType] = (pieceCounts[pieceType] || 0) + 1
+      })
+
+      return (
+        <View style={decayStyles.capturedPieces}>
+          {Object.entries(pieceCounts).map(([piece, count]) => (
+            <View key={piece} style={decayStyles.capturedPieceGroup}>
+              {getPieceComponent(piece, isSmallScreen ? 14 : 16)}
+              {count > 1 && <Text style={decayStyles.capturedCount}>{count}</Text>}
+            </View>
+          ))}
+        </View>
+      )
+    },
+    [gameState.board.capturedPieces],
+  )
+
+  const isDraggingPiece = dragState.active
+  const dragOriginSquare = dragState.from
+
+  // Get square overlays for decay variant (decay timers and frozen indicators)
+  const getSquareOverlays = useCallback(
+    (file: string, rank: string, square: string, piece: string | null): SquareOverlay[] => {
+      const overlays: SquareOverlay[] = []
+      const pieceColor = piece ? getPieceColor(piece) : null
+
+      // Decay timer overlay
+      if (pieceColor && decayState[pieceColor][square]?.isActive) {
+        const decayTimeLeft = decayState[pieceColor][square].timeLeft
+        if (decayTimeLeft > 0) {
+          overlays.push(createDecayTimerOverlay(decayTimeLeft, formatDecayTimeMinutes, decayTimerFontSize))
+        }
+      }
+
+      // Frozen indicator overlay - only show for queens and major pieces
+      if (pieceColor && frozenPieces[pieceColor].has(square) && piece) {
+        const pieceType = piece.toLowerCase()
+        // Only show frozen indicator for queens and major pieces (not pawns or kings)
+        if (pieceType === 'q' || isMajorPiece(piece)) {
+        const moveDotSize = squareSize * BOARD_THEME.moveDotScale
+        overlays.push(createFrozenOverlay(moveDotSize))
+        }
+      }
+
+      return overlays
+    },
+    [getPieceColor, decayState, frozenPieces, squareSize, isMajorPiece],
+  )
+
+  // Custom square styles for frozen pieces (opacity) - only for queens and major pieces
+  const getCustomSquareStyles = useCallback(
+    (square: string) => {
+      const piece = getPieceAt(square)
+      const pieceColor = piece ? getPieceColor(piece) : null
+      // Only show frozen style for queens and major pieces (not pawns or kings)
+      const isFrozen = pieceColor && frozenPieces[pieceColor].has(square) && piece && 
+        (piece.toLowerCase() === 'q' || isMajorPiece(piece))
+
+      return {
+        piece: {
+                  opacity: isFrozen ? 0.6 : 1,
+        },
+      }
+    },
+    [getPieceAt, getPieceColor, frozenPieces, isMajorPiece],
+  )
+
+  // Render game info (check, checkmate, stalemate, etc.)
+  const renderGameInfo = useCallback(() => {
+    const gs = gameState.gameState || {}
+
+    // Check if game has ended
+    if (gameState.status === "ended" || gs.gameEnded) {
+      return (
+        <View style={decayStyles.gameStatusContainer}>
+          <Text style={decayStyles.gameOverText}>🏁 Game Ended 🏁</Text>
+        </View>
+      )
+    }
+
+    // Show whose turn it is
+    const activePlayerName = gameState.players[gameState.board.activeColor]?.username || gameState.board.activeColor
+    const isMyTurnActive = gameState.board.activeColor === playerColor
+
+    return
+  }, [gameState.status, gameState.gameState, gameState.players, gameState.board.activeColor, playerColor])
+
+  // Get last move for board highlighting
+  const lastMove = useMemo(() => {
+    let lastMoveObj = null
+    if (gameState.board && Array.isArray(gameState.board.moveHistory) && gameState.board.moveHistory.length > 0) {
+      lastMoveObj = gameState.board.moveHistory[gameState.board.moveHistory.length - 1]
+    } else if (
+      gameState.lastMove &&
+      typeof gameState.lastMove === "object" &&
+      gameState.lastMove.from &&
+      gameState.lastMove.to
+    ) {
+      lastMoveObj = gameState.lastMove
+    }
+    return lastMoveObj ? { from: lastMoveObj.from, to: lastMoveObj.to } : null
+  }, [gameState.board, gameState.lastMove])
+
+  // Render board using shared component
+  const renderBoard = useCallback(() => {
+    const coordinateFontSize = isSmallScreen ? 8 : 10
+    // Only show possible moves if it's the current player's turn
+    const visiblePossibleMoves = isMyTurn ? possibleMoves : []
+    return (
+      <ChessBoard
+        boardSize={boardSize}
+        squareSize={squareSize}
+        coordinateFontSize={coordinateFontSize}
+        pieceSize={pieceFontSize}
+        boardFlipped={boardFlipped}
+        selectedSquare={selectedSquare}
+        possibleMoves={visiblePossibleMoves}
+        dragState={dragState}
+        dragTargetSquare={dragTargetSquare}
+        lastMove={lastMove}
+        getPieceAt={getPieceAt}
+        onSquarePress={handleSquarePress}
+        onSquareTouchStart={handleSquareTouchStart}
+        getSquareOverlays={getSquareOverlays}
+        panResponder={panResponder}
+        customSquareStyles={getCustomSquareStyles}
+      />
+    )
+  }, [
+    boardSize,
+    squareSize,
+    pieceFontSize,
+    boardFlipped,
+    selectedSquare,
+    possibleMoves,
+    isMyTurn,
+    dragState,
+    dragTargetSquare,
+    lastMove,
+    getPieceAt,
+    handleSquarePress,
+    handleSquareTouchStart,
+    getSquareOverlays,
+    panResponder,
+    getCustomSquareStyles,
+  ])
+
+  const renderPlayerInfo = useCallback(
+    (color: "white" | "black") => {
+      const player = gameState.players[color]
+      if (!player) {
+        return (
+          <View style={decayStyles.playerInfoContainer}>
+            <Text style={decayStyles.playerName}>Unknown Player</Text>
+          </View>
+        )
+      }
+
+      // Use localTimers for smooth UI countdown
+      const timer = safeTimerValue(localTimers[color])
+      const isActive = gameState.board.activeColor === color && gameState.status === "active"
+      const isMe = playerColor === color
+      const materialAdvantage = calculateMaterialAdvantage()
+      const advantage = materialAdvantage[color] - materialAdvantage[color === "white" ? "black" : "white"]
+
+      // Count active decay timers and frozen pieces for this player
+      const activeDecayTimers = Object.values(decayState[color]).filter((timer) => timer.isActive).length
+      const frozenPiecesCount = frozenPieces[color].size
+
+      return (
+        <View style={[decayStyles.playerInfoContainer, isActive && decayStyles.activePlayerContainer]}>
+          <View style={decayStyles.playerHeader}>
+            <View style={decayStyles.playerDetails}>
+              <View style={decayStyles.playerNameRow}>
+                <View style={decayStyles.playerAvatar}>
+                  <Text style={decayStyles.playerAvatarText}>{player.username.charAt(0).toUpperCase()}</Text>
+                </View>
+                <View style={decayStyles.playerNameContainer}>
+                  <Text style={[decayStyles.playerName, isActive && decayStyles.activePlayerName]} numberOfLines={1}>
+                    {player.username}
+                  </Text>
+                  <Text style={decayStyles.playerRating}>({player.rating > 0 ? player.rating : "Unrated"})</Text>
+                </View>
+                {isMe && <Text style={decayStyles.youIndicator}>(You)</Text>}
+              </View>
+              {/* Decay status */}
+              {(activeDecayTimers > 0 || frozenPiecesCount > 0) && (
+                <View style={decayStyles.decayStatus}>
+                  {activeDecayTimers > 0 && <Text style={decayStyles.decayStatusText}>⏱️ {activeDecayTimers} decaying</Text>}
+                  {frozenPiecesCount > 0 && <Text style={decayStyles.frozenStatusText}>❄️ {frozenPiecesCount} frozen</Text>}
+                </View>
+              )}
+            </View>
+            <View style={[decayStyles.timerContainer, isActive && decayStyles.activeTimerContainer]}>
+              <Text style={[decayStyles.timerText, isActive && decayStyles.activeTimerText]}>{formatTime(timer)}</Text>
+            </View>
+          </View>
+          {renderCapturedPieces(color)}
+        </View>
+      )
+    },
+    [
+      gameState.players,
+      gameState.board.activeColor,
+      gameState.status,
+      playerColor,
+      localTimers,
+      calculateMaterialAdvantage,
+      decayState,
+      frozenPieces,
+      formatTime,
+      renderCapturedPieces,
+    ],
+  )
+
+  const renderMoveHistory = useCallback(() => {
+    if (!showMoveHistory) return null
+
+    const moves = moveHistory
+    const movePairs = []
+    for (let i = 0; i < moves.length; i += 2) {
+      // Handle both string and object move formats
+      const whiteMove = moves[i]
+      const blackMove = moves[i + 1]
+      
+      const whiteMoveStr = typeof whiteMove === 'string' 
+        ? whiteMove 
+        : (typeof whiteMove === 'object' && whiteMove !== null 
+          ? (whiteMove.san || (whiteMove.from && whiteMove.to ? `${whiteMove.from}-${whiteMove.to}` : ''))
+          : '')
+      
+      const blackMoveStr = typeof blackMove === 'string' 
+        ? blackMove 
+        : (typeof blackMove === 'object' && blackMove !== null
+          ? (blackMove.san || (blackMove.from && blackMove.to ? `${blackMove.from}-${blackMove.to}` : ''))
+          : '')
+
+      movePairs.push({
+        moveNumber: Math.floor(i / 2) + 1,
+        white: whiteMoveStr || "",
+        black: blackMoveStr || "",
+      })
+    }
+
+    return (
+      <Modal visible={showMoveHistory} transparent animationType="slide">
+        <View style={decayStyles.modalOverlay}>
+          <View style={decayStyles.moveHistoryModal}>
+            <View style={decayStyles.moveHistoryHeader}>
+              <Text style={decayStyles.moveHistoryTitle}>📜 Move History</Text>
+              <TouchableOpacity onPress={() => setShowMoveHistory(false)} style={decayStyles.closeButton}>
+                <Text style={decayStyles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={decayStyles.moveHistoryScroll}>
+              {movePairs.length > 0 ? (
+                movePairs.map((pair, index) => (
+                  <View key={index} style={decayStyles.moveRow}>
+                    <Text style={decayStyles.moveNumber}>{pair.moveNumber}.</Text>
+                    <Text style={decayStyles.moveText}>{pair.white}</Text>
+                    <Text style={decayStyles.moveText}>{pair.black}</Text>
+                  </View>
+                ))
+              ) : (
+                <View style={{ padding: 20, alignItems: 'center' }}>
+                  <Text style={{ color: '#A0A0B0', fontSize: 16 }}>No moves yet</Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    )
+  }, [showMoveHistory, moveHistory])
+
+  // FIXED: Consistent player positioning - each player always sees themselves at bottom
+  const opponentColor = playerColor === "white" ? "black" : "white"
+
+  return (
+    <View style={decayStyles.container}>
+      {/* Opponent Player (always at top) */}
+      {renderPlayerInfo(opponentColor)}
+
+      {/* Game Status */}
+      {renderGameInfo()}
+
+      {/* Chess Board - Centered */}
+      {renderBoard()}
+
+      {/* Current Player (always at bottom) */}
+      {renderPlayerInfo(playerColor)}
+
+      {/* Bottom Control Bar */}
+      <View style={decayStyles.bottomBar}>
+        <TouchableOpacity style={decayStyles.bottomBarButton} onPress={() => setShowMoveHistory(true)}>
+          <Text style={decayStyles.bottomBarIcon}>≡</Text>
+          <Text style={decayStyles.bottomBarLabel}>Moves</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={decayStyles.bottomBarButton}
+          onPress={() => {
+            if (socket && gameState.status === "active") {
+              socket.emit("game:resign")
+            }
+          }}
+        >
+          <Text style={decayStyles.bottomBarIcon}>✕</Text>
+          <Text style={decayStyles.bottomBarLabel}>Resign</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={decayStyles.bottomBarButton}
+          onPress={() => {
+            if (socket && gameState.status === "active") {
+              socket.emit("game:offerDraw")
+            }
+          }}
+        >
+          <Text style={decayStyles.bottomBarIcon}>½</Text>
+          <Text style={decayStyles.bottomBarLabel}>Draw</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Move History Modal */}
+      {renderMoveHistory()}
+
+      {/* Promotion Modal */}
+      {promotionModal && (
+        <Modal visible={promotionModal.visible} transparent animationType="slide">
+          <View style={decayStyles.modalOverlay}>
+            <View style={decayStyles.promotionModal}>
+              <Text style={decayStyles.promotionTitle}>Choose Promotion</Text>
+              <View style={decayStyles.promotionOptions}>
+                {promotionModal.options.map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    style={decayStyles.promotionOption}
+                    onPress={() => handlePromotionSelect(option)}
+                  >
+                    {getPieceComponent(
+                      playerColor === "white" ? option.toUpperCase() : option,
+                      isSmallScreen ? 28 : 32,
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Game End Modal */}
+      <Modal visible={showGameEndModal} transparent animationType="slide">
+        <View style={decayStyles.modalOverlay}>
+          <View
+            style={[
+              decayStyles.gameEndModal,
+              isWinner === true && decayStyles.victoryModal,
+              isWinner === false && decayStyles.defeatModal,
+            ]}
+          >
+            <Text
+              style={[
+                decayStyles.gameEndTitle,
+                isWinner === true && decayStyles.victoryTitle,
+                isWinner === false && decayStyles.defeatTitle,
+              ]}
+            >
+              {isWinner === true ? "🎉 VICTORY! 🎉" : isWinner === false ? "😔 DEFEAT 😔" : "🏁 GAME OVER 🏁"}
+            </Text>
+            <Text style={decayStyles.gameEndMessage}>{gameEndMessage}</Text>
+            {gameEndDetails.reason && <Text style={decayStyles.gameEndReason}>Reason: {gameEndDetails.reason}</Text>}
+            {gameEndDetails.moveSan && (
+              <Text style={decayStyles.gameEndMove}>
+                Move: {gameEndDetails.moveSan} by {gameEndDetails.moveMaker}
+              </Text>
+            )}
+            {gameEndDetails.winnerName && <Text style={decayStyles.gameEndWinner}>Winner: {gameEndDetails.winnerName}</Text>}
+            <TouchableOpacity style={decayStyles.menuButton} onPress={navigateToMenu}>
+              <Text style={decayStyles.menuButtonText}>Back to Menu</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  )
+}

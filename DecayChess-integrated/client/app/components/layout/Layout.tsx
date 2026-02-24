@@ -1,0 +1,74 @@
+import React from 'react';
+import { StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import BottomBar from './BottomBar';
+import HeaderBar from './HeaderBar';
+import TopNavBar from './TopNavBar';
+
+interface LayoutProps {
+  children: React.ReactNode;
+  onProfile: () => void;
+  onLogout: () => void;
+  onSelectHome: () => void;
+  onSelectOffline?: () => void;
+  onSelectReels?: () => void;
+  onSelectTournament?: () => void;
+  isChooseScreen?: boolean;
+  hideTopNav?: boolean;
+  hideNavigation?: boolean; // Added to hide all navigation elements
+  activeBottomTab?: "home" | "menu" | "offline" | "reels";
+}
+
+export default function Layout({
+  children,
+  onProfile,
+  onLogout,
+  onSelectHome,
+  onSelectOffline,
+  onSelectReels,
+  onSelectTournament,
+  isChooseScreen = true,
+  hideTopNav = false,
+  hideNavigation = false,
+  activeBottomTab = "home",
+}: LayoutProps) {
+  const router = useRouter();
+  // Default reels handler if none provided
+  const handleReels = onSelectReels || (() => router.push('/(main)/reels'));
+  return (
+    <SafeAreaView style={styles.container}>
+      {!hideNavigation && <HeaderBar />}
+      {!hideNavigation && !hideTopNav && onSelectTournament && (
+        <TopNavBar
+          isChooseScreen={isChooseScreen}
+          onSelectChoose={onSelectHome}
+          onSelectTournament={onSelectTournament}
+        />
+      )}
+      <View style={styles.content}>
+        {children}
+      </View>
+      {!hideNavigation && (
+        <BottomBar
+          onProfile={onProfile}
+          onLogout={onLogout}
+          onHome={onSelectHome}
+          onOffline={onSelectOffline}
+          onSelectReels={handleReels}
+          activeTab={activeBottomTab}
+        />
+      )}
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#0F0F23",
+  },
+  content: {
+    flex: 1,
+  },
+});
