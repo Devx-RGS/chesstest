@@ -9,8 +9,6 @@ packager-info.json
 expo-env.d.ts
 
 # Env files
-.env
-.env.*
 
 # Build artifacts
 dist/
