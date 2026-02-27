@@ -18,11 +18,14 @@ import { Reel } from "../lib/types/reel";
 import { formatCount } from "../lib/services/reelApi";
 
 function DashboardContent() {
-    const { data: reels = [], isLoading: reelsLoading, refetch: refetchReels } = useAdminReels();
+    const { data: reels = [], isLoading: reelsLoading, isError: reelsError, error: reelsErrorObj, refetch: refetchReels } = useAdminReels();
     const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useAdminStats();
     const deleteReel = useDeleteReel();
     const logout = useAuthStore((s) => s.logout);
     const [refreshing, setRefreshing] = useState(false);
+
+    // Debug log
+    console.log(`[Dashboard] reels: ${reels.length}, loading: ${reelsLoading}, error: ${reelsError}`, reelsErrorObj);
 
     const onRefresh = async () => {
         setRefreshing(true);
@@ -109,6 +112,19 @@ function DashboardContent() {
 
                 {reelsLoading ? (
                     <ActivityIndicator color="#00D9FF" style={{ marginVertical: 20 }} />
+                ) : reelsError ? (
+                    <View style={styles.emptyState}>
+                        <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
+                        <Text style={styles.emptyText}>Failed to load reels</Text>
+                        <Text style={[styles.emptyText, { fontSize: 12, color: '#9CA3AF' }]}>
+                            {(reelsErrorObj as any)?.response?.status === 401 ? 'Session expired. Please log in again.' :
+                                (reelsErrorObj as any)?.response?.status === 403 ? 'Admin access required.' :
+                                    (reelsErrorObj as any)?.message || 'Network error'}
+                        </Text>
+                        <TouchableOpacity style={styles.emptyBtn} onPress={() => refetchReels()}>
+                            <Text style={styles.emptyBtnText}>Retry</Text>
+                        </TouchableOpacity>
+                    </View>
                 ) : reels.length === 0 ? (
                     <View style={styles.emptyState}>
                         <Ionicons name="film-outline" size={48} color="#6B7280" />

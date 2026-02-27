@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "./apiClient";
 import { Reel } from "../types/reel";
+import { useAuthStore } from "../stores/authStore";
 
 interface AdminVideosResponse {
     success: boolean;
@@ -49,8 +50,14 @@ export interface PostReelData {
 
 // Fetch all reels for admin (including drafts)
 async function fetchAdminReels(): Promise<Reel[]> {
-    const response = await apiClient.get<AdminVideosResponse>("/admin/videos");
-    return response.data.data || [];
+    try {
+        const response = await apiClient.get<AdminVideosResponse>("/admin/videos");
+        console.log(`[AdminAPI] fetchAdminReels: got ${response.data.data?.length ?? 0} reels`);
+        return response.data.data || [];
+    } catch (error: any) {
+        console.error("[AdminAPI] fetchAdminReels FAILED:", error?.response?.status, error?.response?.data || error?.message);
+        throw error; // Re-throw so React Query can track the error state
+    }
 }
 
 // Fetch admin stats
@@ -72,19 +79,25 @@ async function fetchAdminStats(): Promise<AdminStatsResponse["stats"]> {
 
 // Hook: Get all admin reels
 export function useAdminReels() {
+    const token = useAuthStore((s) => s.token);
+    const isAdmin = useAuthStore((s) => s.isAdmin);
     return useQuery({
         queryKey: ["admin-reels"],
         queryFn: fetchAdminReels,
         staleTime: 2 * 60 * 1000,
+        enabled: !!token && isAdmin,
     });
 }
 
 // Hook: Get admin stats
 export function useAdminStats() {
+    const token = useAuthStore((s) => s.token);
+    const isAdmin = useAuthStore((s) => s.isAdmin);
     return useQuery({
         queryKey: ["admin-stats"],
         queryFn: fetchAdminStats,
         staleTime: 60 * 1000,
+        enabled: !!token && isAdmin,
     });
 }
 
