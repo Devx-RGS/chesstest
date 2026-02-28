@@ -1,9 +1,5 @@
-import { Platform } from 'react-native';
 
-// Emulator/simulator-friendly host
-// Use your machine's LAN IP for physical device testing
-const DEFAULT_HOST = '10.0.51.95';
-const DEFAULT_PORT = 3000;
+
 
 /** 
  * =========================================================
@@ -22,8 +18,8 @@ const USE_MAIN_SERVER = false; // 👉 dev / local server
 const MAIN_HTTP = 'https://decaychess-1.onrender.com';
 const MAIN_API = `${MAIN_HTTP}/api`;
 
-const DEV_HTTP = `http://${DEFAULT_HOST}:${DEFAULT_PORT}`;
-const DEV_API = `${DEV_HTTP}/api`;
+const DEV_HTTP = process.env.EXPO_PUBLIC_WS_URL;
+const DEV_API = process.env.EXPO_PUBLIC_API_URL;
 
 export const API_BASE_URL = USE_MAIN_SERVER ? MAIN_API : DEV_API;
 export const WS_BASE_URL = USE_MAIN_SERVER ? MAIN_HTTP : DEV_HTTP;
