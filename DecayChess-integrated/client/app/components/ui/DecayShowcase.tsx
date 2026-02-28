@@ -320,7 +320,7 @@ export default DecayShowcase;
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#1A1A2E",
+    backgroundColor: "#111629",
     borderRadius: BORDER_RADIUS.large,
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.lg,
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
   },
   badgeLive: {
     backgroundColor: "rgba(0, 168, 98, 0.15)",
-    borderColor: "#00D9FF",
+    borderColor: "#F5A623",
   },
   badgeIdle: {
     backgroundColor: "rgba(255, 255, 255, 0.08)",
@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.medium,
   },
   timerValue: {
-    color: "#00D9FF",
+    color: "#F5A623",
     fontSize: FONT_SIZES.large,
     fontWeight: "700",
   },
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
   },
   timerFill: {
     height: "100%",
-    backgroundColor: "#00D9FF",
+    backgroundColor: "#F5A623",
   },
   timerFillExpired: {
     backgroundColor: "#FF6B6B",

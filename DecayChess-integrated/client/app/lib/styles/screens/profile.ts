@@ -4,11 +4,11 @@ import { StyleSheet } from 'react-native'
 export const profileScreenStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F0F23',
+    backgroundColor: '#080B14',
     padding: 20,
   },
   profileBox: {
-    backgroundColor: '#1A1A2E',
+    backgroundColor: '#111629',
     borderRadius: 16,
     padding: 24,
     shadowColor: '#000',
@@ -26,12 +26,12 @@ export const profileScreenStyles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#00D9FF',
+    backgroundColor: '#F5A623',
     marginBottom: 16,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,
-    shadowColor: '#00D9FF',
+    shadowColor: '#F5A623',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -59,7 +59,7 @@ export const profileScreenStyles = StyleSheet.create({
     gap: 12,
   },
   optionButton: {
-    backgroundColor: '#1A1A2E',
+    backgroundColor: '#111629',
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderRadius: 12,

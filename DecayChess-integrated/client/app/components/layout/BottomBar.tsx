@@ -1,7 +1,9 @@
-import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
-import Ionicons from '@expo/vector-icons/Ionicons';
+// Floating Glass Bottom Navigation Bar — Premium
+import React, { useRef } from 'react';
+import { Animated, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS, GLASS, SHADOWS } from '../../lib/styles/base';
 
 interface BottomBarProps {
   onProfile: () => void;
@@ -9,132 +11,173 @@ interface BottomBarProps {
   onHome: () => void;
   onOffline?: () => void;
   onSelectReels?: () => void;
-  activeTab?: "home" | "menu" | "offline" | "reels";
+  activeTab?: 'home' | 'menu' | 'offline' | 'reels';
 }
 
-export default function BottomBar({ onProfile, onLogout: _onLogout, onHome, onOffline, onSelectReels, activeTab = "home" }: BottomBarProps) {
-  const isHomeActive = activeTab === "home";
-  const isMenuActive = activeTab === "menu";
-  const isOfflineActive = activeTab === "offline";
-  const isReelsActive = activeTab === "reels";
-  const inactiveStroke = "rgba(255,255,255,0.55)";
-  const activeFill = "#FFFFFF";
+const tabs = [
+  { key: 'home', label: 'Home', icon: 'grid-outline', iconActive: 'grid' },
+  { key: 'offline', label: 'Offline', icon: 'game-controller-outline', iconActive: 'game-controller' },
+  { key: 'reels', label: 'Reels', icon: 'play-circle-outline', iconActive: 'play-circle' },
+  { key: 'menu', label: 'Menu', icon: 'menu-outline', iconActive: 'menu' },
+] as const;
+
+function TabItem({
+  isActive,
+  onPress,
+  label,
+  iconName,
+  iconNameActive,
+  disabled,
+}: {
+  isActive: boolean;
+  onPress?: () => void;
+  label: string;
+  iconName: string;
+  iconNameActive: string;
+  disabled?: boolean;
+}) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, { toValue: 0.85, useNativeDriver: true, speed: 50, bounciness: 6 }).start();
+  };
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 50, bounciness: 6 }).start();
+  };
 
   return (
-    <View style={styles.bottomNavBar}>
-      {/* Home Button */}
-      <TouchableOpacity style={styles.bottomNavButton} onPress={onHome}>
-        <View style={styles.iconContainer}>
-          <Svg width="24" height="24" viewBox="0 0 45 45" style={styles.icon}>
-            <Path
-              d="M 9,39 L 36,39 L 36,36 L 9,36 L 9,39 z"
-              fill={isHomeActive ? activeFill : "none"}
-              stroke={isHomeActive ? activeFill : inactiveStroke}
-              strokeWidth="1.5"
-            />
-            <Path
-              d="M 12,36 L 12,32 L 33,32 L 33,36 L 12,36 z"
-              fill={isHomeActive ? activeFill : "none"}
-              stroke={isHomeActive ? activeFill : inactiveStroke}
-              strokeWidth="1.5"
-            />
-            <Path
-              d="M 11,14 L 11,9 L 15,9 L 15,11 L 20,11 L 20,9 L 25,9 L 25,11 L 30,11 L 30,9 L 34,9 L 34,14"
-              fill={isHomeActive ? activeFill : "none"}
-              stroke={isHomeActive ? activeFill : inactiveStroke}
-              strokeWidth="1.5"
-            />
-            <Path
-              d="M 34,14 L 31,17 L 14,17 L 11,14"
-              fill={isHomeActive ? activeFill : "none"}
-              stroke={isHomeActive ? activeFill : inactiveStroke}
-              strokeWidth="1.5"
-            />
-            <Path
-              d="M 31,17 L 31,29.5 L 14,29.5 L 14,17"
-              fill={isHomeActive ? activeFill : "none"}
-              stroke={isHomeActive ? activeFill : inactiveStroke}
-              strokeWidth="1.5"
-            />
-          </Svg>
-          <Text style={[styles.bottomNavButtonText, !isHomeActive && styles.inactiveText]}>
-            Home
-          </Text>
-        </View>
-      </TouchableOpacity>
+    <TouchableOpacity
+      style={styles.tab}
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      disabled={disabled}
+      activeOpacity={0.7}
+    >
+      <Animated.View style={[styles.tabInner, { transform: [{ scale: scaleAnim }] }]}>
+        {isActive && <View style={styles.activeGlow} />}
+        <Ionicons
+          name={(isActive ? iconNameActive : iconName) as any}
+          size={22}
+          color={isActive ? COLORS.accent : COLORS.mutedText}
+        />
+        <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
+          {label}
+        </Text>
+        {isActive && <View style={styles.activeDot} />}
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
 
-      {/* Offline Button */}
-      <TouchableOpacity style={styles.bottomNavButton} onPress={onOffline} disabled={!onOffline}>
-        <View style={styles.iconContainer}>
-          <Ionicons name="game-controller" size={24} color={isOfflineActive ? activeFill : inactiveStroke} style={styles.icon} />
-          <Text style={[styles.bottomNavButtonText, !isOfflineActive && styles.inactiveText]}>
-            Offline
-          </Text>
-        </View>
-      </TouchableOpacity>
+export default function BottomBar({
+  onProfile,
+  onLogout: _onLogout,
+  onHome,
+  onOffline,
+  onSelectReels,
+  activeTab = 'home',
+}: BottomBarProps) {
+  const getHandler = (key: string) => {
+    switch (key) {
+      case 'home': return onHome;
+      case 'offline': return onOffline;
+      case 'reels': return onSelectReels;
+      case 'menu': return onProfile;
+      default: return onHome;
+    }
+  };
 
-      {/* Reels Button */}
-      <TouchableOpacity style={styles.bottomNavButton} onPress={onSelectReels} disabled={!onSelectReels}>
-        <View style={styles.iconContainer}>
-          <Ionicons name="film" size={24} color={isReelsActive ? activeFill : inactiveStroke} style={styles.icon} />
-          <Text style={[styles.bottomNavButtonText, !isReelsActive && styles.inactiveText]}>
-            Reels
-          </Text>
-        </View>
-      </TouchableOpacity>
+  const BarContent = () => (
+    <View style={styles.innerContainer}>
+      {tabs.map((tab) => (
+        <TabItem
+          key={tab.key}
+          isActive={activeTab === tab.key}
+          onPress={getHandler(tab.key)}
+          label={tab.label}
+          iconName={tab.icon}
+          iconNameActive={tab.iconActive}
+          disabled={tab.key === 'offline' ? !onOffline : tab.key === 'reels' ? !onSelectReels : false}
+        />
+      ))}
+    </View>
+  );
 
-      {/* Menu Button */}
-      <TouchableOpacity style={styles.bottomNavButton} onPress={onProfile}>
-        <View style={styles.iconContainer}>
-          <Svg width="24" height="24" viewBox="0 0 24 24" style={styles.icon}>
-            <Path
-              d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"
-              fill={isMenuActive ? activeFill : "none"}
-              stroke={isMenuActive ? activeFill : inactiveStroke}
-              strokeWidth={isMenuActive ? 0 : 1.5}
-            />
-          </Svg>
-          <Text style={[styles.bottomNavButtonText, !isMenuActive && styles.inactiveText]}>
-            Menu
-          </Text>
-        </View>
-      </TouchableOpacity>
+  if (Platform.OS === 'ios') {
+    return (
+      <View style={styles.floatingWrapper}>
+        <BlurView intensity={60} tint="dark" style={styles.bar}>
+          <BarContent />
+        </BlurView>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.floatingWrapper}>
+      <View style={[styles.bar, styles.androidBar]}>
+        <BarContent />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  bottomNavBar: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    paddingVertical: 8,
-    backgroundColor: "#1A1A2E",
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.1)",
+  floatingWrapper: {
+    paddingHorizontal: 12,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 10,
   },
-  bottomNavButton: {
-    alignItems: "center",
+  bar: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    ...SHADOWS.glass,
+  },
+  androidBar: {
+    backgroundColor: 'rgba(17, 22, 41, 0.95)',
+  },
+  innerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  tab: {
+    alignItems: 'center',
     flex: 1,
   },
-  iconContainer: {
+  tabInner: {
     alignItems: 'center',
     justifyContent: 'center',
     height: 48,
+    position: 'relative',
   },
-  icon: {
-    width: 24,
-    height: 24,
-    marginBottom: 4,
+  activeGlow: {
+    position: 'absolute',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(245, 166, 35, 0.08)',
   },
-  bottomNavButtonText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "500",
-    textAlign: 'center',
-    opacity: 1,
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: COLORS.mutedText,
+    marginTop: 2,
+    letterSpacing: 0.2,
   },
-  inactiveText: {
-    color: "rgba(255,255,255,0.75)",
+  tabLabelActive: {
+    color: COLORS.accent,
+    fontWeight: '700',
+  },
+  activeDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.accent,
+    marginTop: 3,
   },
 });

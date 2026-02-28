@@ -73,7 +73,7 @@ export default function Leaderboard() {
     return (
       <SafeAreaView style={leaderboardScreenStyles.container}>
         <View style={leaderboardScreenStyles.loadingContainer}>
-          <ActivityIndicator size="large" color="#00D9FF" />
+          <ActivityIndicator size="large" color="#F5A623" />
           <Text style={leaderboardScreenStyles.loadingText}>Loading leaderboard...</Text>
         </View>
       </SafeAreaView>
@@ -103,8 +103,8 @@ export default function Leaderboard() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              colors={['#00D9FF']}
-              tintColor="#00D9FF"
+              colors={['#F5A623']}
+              tintColor="#F5A623"
             />
           }
         >

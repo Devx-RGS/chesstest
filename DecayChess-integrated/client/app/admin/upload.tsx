@@ -18,8 +18,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
 import { AdminAuthGuard } from "../components/admin/AdminAuthGuard";
-import { usePostReel, PREDEFINED_GRANDMASTERS, PostReelData } from "../lib/services/adminApi";
+import { usePostReel, PostReelData, useGrandmasterFolders } from "../lib/services/adminApi";
 import { axiosClient } from "../lib/services/axiosClient";
+import { FONTS } from "../lib/styles/base";
 
 type UploadMode = "local" | "url";
 
@@ -52,6 +53,7 @@ function UploadContent() {
     const [showInteractive, setShowInteractive] = useState(false);
 
     const postReel = usePostReel();
+    const { data: gmFolders = [], isLoading: gmFoldersLoading } = useGrandmasterFolders();
 
     // Local file pickers
     const pickVideo = async () => {
@@ -156,7 +158,7 @@ function UploadContent() {
 
     return (
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-            <LinearGradient colors={["#0F0F23", "#0f172a"]} style={{ flex: 1 }}>
+            <LinearGradient colors={["#080B14", "#0f172a"]} style={{ flex: 1 }}>
                 <ScrollView style={styles.container} contentContainerStyle={styles.content}>
                     {/* Header */}
                     <View style={styles.header}>
@@ -169,20 +171,20 @@ function UploadContent() {
 
                     {/* Upload Mode Toggle */}
                     <View style={styles.glassCard}>
-                        <Text style={styles.sectionTitle}>📤 Upload Mode</Text>
+                        <Text style={styles.sectionTitle}>Upload Mode</Text>
                         <View style={styles.modeToggle}>
                             <TouchableOpacity
                                 style={[styles.modeBtn, uploadMode === "local" && styles.modeBtnActive]}
                                 onPress={() => setUploadMode("local")}
                             >
-                                <Ionicons name="phone-portrait-outline" size={16} color={uploadMode === "local" ? "#0F0F23" : "#A0A0B0"} />
+                                <Ionicons name="phone-portrait-outline" size={16} color={uploadMode === "local" ? "#080B14" : "#A0A0B0"} />
                                 <Text style={[styles.modeBtnText, uploadMode === "local" && styles.modeBtnTextActive]}>Device</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={[styles.modeBtn, uploadMode === "url" && styles.modeBtnActive]}
                                 onPress={() => setUploadMode("url")}
                             >
-                                <Ionicons name="link-outline" size={16} color={uploadMode === "url" ? "#0F0F23" : "#A0A0B0"} />
+                                <Ionicons name="link-outline" size={16} color={uploadMode === "url" ? "#080B14" : "#A0A0B0"} />
                                 <Text style={[styles.modeBtnText, uploadMode === "url" && styles.modeBtnTextActive]}>URL</Text>
                             </TouchableOpacity>
                         </View>
@@ -190,11 +192,11 @@ function UploadContent() {
 
                     {/* Video Source */}
                     <View style={styles.glassCard}>
-                        <Text style={styles.sectionTitle}>🎬 Video</Text>
+                        <Text style={styles.sectionTitle}>Video Input</Text>
                         {uploadMode === "local" ? (
                             <>
                                 <TouchableOpacity style={styles.pickBtn} onPress={pickVideo}>
-                                    <Ionicons name="videocam-outline" size={24} color="#00D9FF" />
+                                    <Ionicons name="videocam-outline" size={24} color="#F5A623" />
                                     <Text style={styles.pickBtnText}>{videoUri ? "Change Video" : "Select Video"}</Text>
                                 </TouchableOpacity>
                                 {videoUri && <Text style={styles.selectedFile} numberOfLines={1}>✓ {videoUri.split('/').pop()}</Text>}
@@ -213,11 +215,11 @@ function UploadContent() {
 
                     {/* Thumbnail */}
                     <View style={styles.glassCard}>
-                        <Text style={styles.sectionTitle}>🖼️ Thumbnail (optional)</Text>
+                        <Text style={styles.sectionTitle}>Thumbnail Snapshot (optional)</Text>
                         {uploadMode === "local" ? (
                             <>
                                 <TouchableOpacity style={styles.pickBtn} onPress={pickThumbnail}>
-                                    <Ionicons name="image-outline" size={24} color="#00D9FF" />
+                                    <Ionicons name="image-outline" size={24} color="#F5A623" />
                                     <Text style={styles.pickBtnText}>{thumbnailUri ? "Change Thumbnail" : "Select Thumbnail"}</Text>
                                 </TouchableOpacity>
                                 {thumbnailUri && (
@@ -238,7 +240,7 @@ function UploadContent() {
 
                     {/* Content Details */}
                     <View style={styles.glassCard}>
-                        <Text style={styles.sectionTitle}>📝 Details</Text>
+                        <Text style={styles.sectionTitle}>Reel Details</Text>
                         <View style={styles.field}>
                             <Text style={styles.label}>Title *</Text>
                             <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="Reel title" placeholderTextColor="#6B7280" />
@@ -255,14 +257,14 @@ function UploadContent() {
 
                     {/* Players */}
                     <View style={styles.glassCard}>
-                        <Text style={styles.sectionTitle}>♟ Players</Text>
+                        <Text style={styles.sectionTitle}>Players Matchup</Text>
                         <View style={styles.row}>
                             <View style={[styles.field, { flex: 1 }]}>
-                                <Text style={styles.label}>♔ White</Text>
+                                <Text style={styles.label}>White Player</Text>
                                 <TextInput style={styles.input} value={whitePlayer} onChangeText={setWhitePlayer} placeholder="White player" placeholderTextColor="#6B7280" />
                             </View>
                             <View style={[styles.field, { flex: 1 }]}>
-                                <Text style={styles.label}>♚ Black</Text>
+                                <Text style={styles.label}>Black Player</Text>
                                 <TextInput style={styles.input} value={blackPlayer} onChangeText={setBlackPlayer} placeholder="Black player" placeholderTextColor="#6B7280" />
                             </View>
                         </View>
@@ -270,7 +272,7 @@ function UploadContent() {
 
                     {/* Difficulty */}
                     <View style={styles.glassCard}>
-                        <Text style={styles.sectionTitle}>⚡ Difficulty</Text>
+                        <Text style={styles.sectionTitle}>Difficulty Level</Text>
                         <View style={styles.pillRow}>
                             {difficulties.map((d) => (
                                 <TouchableOpacity
@@ -286,7 +288,7 @@ function UploadContent() {
 
                     {/* Folder */}
                     <View style={styles.glassCard}>
-                        <Text style={styles.sectionTitle}>📁 Folder</Text>
+                        <Text style={styles.sectionTitle}>Storage Folder</Text>
                         <View style={styles.pillRow}>
                             <TouchableOpacity style={[styles.pill, folder === "random" && styles.pillActive]} onPress={() => setFolder("random")}>
                                 <Text style={[styles.pillText, folder === "random" && styles.pillTextActive]}>Random</Text>
@@ -297,21 +299,32 @@ function UploadContent() {
                         </View>
                         {folder === "grandmaster" && (
                             <View style={{ marginTop: 12 }}>
-                                <View style={styles.gmGrid}>
-                                    {PREDEFINED_GRANDMASTERS.map((gm) => (
-                                        <TouchableOpacity key={gm} style={[styles.gmChip, grandmaster === gm && styles.gmChipActive]} onPress={() => setGrandmaster(gm)}>
-                                            <Text style={[styles.gmChipText, grandmaster === gm && styles.gmChipTextActive]}>{gm}</Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-                                <TextInput style={[styles.input, { marginTop: 8 }]} value={grandmaster} onChangeText={setGrandmaster} placeholder="Or type custom name" placeholderTextColor="#6B7280" />
+                                <Text style={styles.label}>Select Grand Master Folder</Text>
+                                {gmFoldersLoading ? (
+                                    <ActivityIndicator color="#F5A623" style={{ marginVertical: 12 }} />
+                                ) : gmFolders.length === 0 ? (
+                                    <Text style={{ color: '#706D82', fontSize: 13, marginTop: 4 }}>No folders created yet. Create one from the Dashboard first.</Text>
+                                ) : (
+                                    <View style={styles.gmGrid}>
+                                        {gmFolders.map((gm) => (
+                                            <TouchableOpacity
+                                                key={gm._id}
+                                                style={[styles.gmChip, grandmaster === gm.name && styles.gmChipActive]}
+                                                onPress={() => setGrandmaster(gm.name)}
+                                            >
+                                                <Text style={[styles.gmChipText, grandmaster === gm.name && styles.gmChipTextActive]}>{gm.name}</Text>
+                                                <Text style={{ color: '#706D82', fontSize: 10, marginTop: 1 }}>{gm.reelCount} reels</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                )}
                             </View>
                         )}
                     </View>
 
                     {/* FEN String */}
                     <View style={styles.glassCard}>
-                        <Text style={styles.sectionTitle}>♜ FEN String (optional)</Text>
+                        <Text style={styles.sectionTitle}>FEN Position String (optional)</Text>
                         <TextInput style={styles.input} value={fenString} onChangeText={setFenString} placeholder="rnbqkbnr/pppppppp/..." placeholderTextColor="#6B7280" autoCapitalize="none" />
                     </View>
 
@@ -319,7 +332,7 @@ function UploadContent() {
                     <View style={styles.glassCard}>
                         <TouchableOpacity style={styles.toggleRow} onPress={() => setShowInteractive(!showInteractive)}>
                             <View style={styles.toggleLeft}>
-                                <Ionicons name="game-controller-outline" size={18} color="#00D9FF" />
+                                <Ionicons name="game-controller-outline" size={18} color="#F5A623" />
                                 <Text style={styles.sectionTitle}>Interactive Challenge</Text>
                             </View>
                             <Ionicons name={showInteractive ? "chevron-up" : "chevron-down"} size={20} color="#A0A0B0" />
@@ -339,10 +352,10 @@ function UploadContent() {
                                     <Text style={styles.subLabel}>Player Color</Text>
                                     <View style={styles.pillRow}>
                                         <TouchableOpacity style={[styles.pill, playerColor === "w" && styles.pillActive]} onPress={() => setPlayerColor("w")}>
-                                            <Text style={[styles.pillText, playerColor === "w" && styles.pillTextActive]}>♔ White</Text>
+                                            <Text style={[styles.pillText, playerColor === "w" && styles.pillTextActive]}>White</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity style={[styles.pill, playerColor === "b" && styles.pillActive]} onPress={() => setPlayerColor("b")}>
-                                            <Text style={[styles.pillText, playerColor === "b" && styles.pillTextActive]}>♚ Black</Text>
+                                            <Text style={[styles.pillText, playerColor === "b" && styles.pillTextActive]}>Black</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity style={[styles.pill, playerColor === null && styles.pillActive]} onPress={() => setPlayerColor(null)}>
                                             <Text style={[styles.pillText, playerColor === null && styles.pillTextActive]}>User Picks</Text>
@@ -382,10 +395,10 @@ function UploadContent() {
                         disabled={postReel.isPending}
                     >
                         {postReel.isPending ? (
-                            <ActivityIndicator color="#0F0F23" />
+                            <ActivityIndicator color="#080B14" />
                         ) : (
                             <>
-                                <Ionicons name="cloud-upload-outline" size={20} color="#0F0F23" />
+                                <Ionicons name="cloud-upload-outline" size={20} color="#080B14" />
                                 <Text style={styles.submitText}>Upload Reel</Text>
                             </>
                         )}
@@ -408,7 +421,7 @@ const styles = StyleSheet.create({
     container: { flex: 1 },
     content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
     header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24 },
-    headerTitle: { fontSize: 22, fontWeight: "800", color: "#FFFFFF" },
+    headerTitle: { fontFamily: FONTS.extrabold, fontSize: 22, color: "#FFFFFF" },
     glassCard: {
         backgroundColor: "rgba(255,255,255,0.04)",
         borderRadius: 16,
@@ -417,7 +430,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: "rgba(255,255,255,0.08)",
     },
-    sectionTitle: { color: "#FFFFFF", fontSize: 15, fontWeight: "700", marginBottom: 10 },
+    sectionTitle: { fontFamily: FONTS.bold, color: "#FFFFFF", fontSize: 15, marginBottom: 10 },
     modeToggle: { flexDirection: "row", gap: 10 },
     modeBtn: {
         flex: 1,
@@ -431,9 +444,9 @@ const styles = StyleSheet.create({
         borderColor: "rgba(255,255,255,0.1)",
         backgroundColor: "rgba(255,255,255,0.04)",
     },
-    modeBtnActive: { backgroundColor: "#00D9FF", borderColor: "#00D9FF" },
-    modeBtnText: { color: "#A0A0B0", fontSize: 14, fontWeight: "600" },
-    modeBtnTextActive: { color: "#0F0F23" },
+    modeBtnActive: { backgroundColor: "#F5A623", borderColor: "#F5A623" },
+    modeBtnText: { fontFamily: FONTS.semibold, color: "#A0A0B0", fontSize: 14 },
+    modeBtnTextActive: { color: "#080B14" },
     pickBtn: {
         flexDirection: "row",
         alignItems: "center",
@@ -442,17 +455,17 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         borderRadius: 12,
         borderWidth: 1.5,
-        borderColor: "rgba(0, 217, 255, 0.3)",
+        borderColor: "rgba(245, 166, 35, 0.3)",
         borderStyle: "dashed",
-        backgroundColor: "rgba(0, 217, 255, 0.05)",
+        backgroundColor: "rgba(245, 166, 35, 0.05)",
         justifyContent: "center",
     },
-    pickBtnText: { color: "#00D9FF", fontSize: 15, fontWeight: "600" },
-    selectedFile: { color: "#10B981", fontSize: 12, marginTop: 8, fontStyle: "italic" },
+    pickBtnText: { fontFamily: FONTS.semibold, color: "#F5A623", fontSize: 15 },
+    selectedFile: { fontFamily: FONTS.regular, color: "#10B981", fontSize: 12, marginTop: 8, fontStyle: "italic" },
     thumbPreview: { width: "100%", height: 120, borderRadius: 10, marginTop: 10 },
     field: { marginBottom: 14 },
-    label: { color: "#A0A0B0", fontSize: 13, fontWeight: "600", marginBottom: 6 },
-    subLabel: { color: "#A0A0B0", fontSize: 12, marginBottom: 4 },
+    label: { fontFamily: FONTS.semibold, color: "#A0A0B0", fontSize: 13, marginBottom: 6 },
+    subLabel: { fontFamily: FONTS.regular, color: "#A0A0B0", fontSize: 12, marginBottom: 4 },
     input: {
         backgroundColor: "rgba(255,255,255,0.05)",
         borderRadius: 12,
@@ -474,9 +487,9 @@ const styles = StyleSheet.create({
         borderColor: "rgba(255,255,255,0.12)",
         backgroundColor: "rgba(255,255,255,0.04)",
     },
-    pillActive: { borderColor: "#00D9FF", backgroundColor: "rgba(0, 217, 255, 0.12)" },
-    pillText: { color: "#A0A0B0", fontSize: 13, fontWeight: "500", textTransform: "capitalize" },
-    pillTextActive: { color: "#00D9FF" },
+    pillActive: { borderColor: "#F5A623", backgroundColor: "rgba(245, 166, 35, 0.12)" },
+    pillText: { fontFamily: FONTS.medium, color: "#A0A0B0", fontSize: 13, textTransform: "capitalize" },
+    pillTextActive: { color: "#F5A623" },
     gmGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     gmChip: {
         paddingHorizontal: 12,
@@ -487,8 +500,8 @@ const styles = StyleSheet.create({
         borderColor: "rgba(255,255,255,0.08)",
     },
     gmChipActive: { borderColor: "#7B2FF7", backgroundColor: "rgba(123, 47, 247, 0.15)" },
-    gmChipText: { color: "#A0A0B0", fontSize: 12 },
-    gmChipTextActive: { color: "#7B2FF7", fontWeight: "600" },
+    gmChipText: { fontFamily: FONTS.regular, color: "#A0A0B0", fontSize: 12 },
+    gmChipTextActive: { fontFamily: FONTS.semibold, color: "#7B2FF7" },
     toggleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
     toggleLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
     starsRow: { flexDirection: "row", gap: 6, marginTop: 4 },
@@ -496,12 +509,12 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         height: 56,
         borderRadius: 16,
-        backgroundColor: "#00D9FF",
+        backgroundColor: "#F5A623",
         justifyContent: "center",
         alignItems: "center",
         gap: 8,
         marginTop: 8,
     },
     submitBtnDisabled: { opacity: 0.6 },
-    submitText: { fontSize: 17, fontWeight: "700", color: "#0F0F23" },
+    submitText: { fontFamily: FONTS.bold, fontSize: 17, color: "#080B14" },
 });

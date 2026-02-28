@@ -15,7 +15,7 @@ export function AdminAuthGuard({ children }: AdminAuthGuardProps) {
     if (isLoading) {
         return (
             <View style={styles.container}>
-                <ActivityIndicator size="large" color="#00D9FF" />
+                <ActivityIndicator size="large" color="#F5A623" />
             </View>
         );
     }
@@ -32,6 +32,6 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
-        backgroundColor: "#0F0F23",
+        backgroundColor: "#080B14",
     },
 });

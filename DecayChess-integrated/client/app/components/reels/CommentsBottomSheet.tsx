@@ -149,7 +149,7 @@ export function CommentsBottomSheet({ visible, reelId, onClose }: CommentsBottom
                                     disabled={!text.trim()}
                                     style={[styles.sendBtn, !text.trim() && styles.sendBtnDisabled]}
                                 >
-                                    <Ionicons name="send" size={20} color={text.trim() ? "#00D9FF" : "#6B7280"} />
+                                    <Ionicons name="send" size={20} color={text.trim() ? "#F5A623" : "#6B7280"} />
                                 </TouchableOpacity>
                             </View>
                         </KeyboardAvoidingView>
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
         justifyContent: "flex-end",
     },
     sheet: {
-        backgroundColor: "#1A1A2E",
+        backgroundColor: "#111629",
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
         maxHeight: SCREEN_HEIGHT * 0.65,

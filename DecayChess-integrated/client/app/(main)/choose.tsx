@@ -20,6 +20,7 @@ import Layout from '../components/layout/Layout';
 import DecayShowcase from '../components/ui/DecayShowcase';
 import VariantCard from '../components/ui/VariantCard';
 import Skeleton from "../components/ui/Skeleton";
+import GlassButton from '../components/ui/GlassButton';
 import TournamentScreen from "./tournament";
 import { chooseScreenStyles } from "../lib/styles/screens";
 
@@ -32,19 +33,19 @@ const smoothScrollProps: Partial<ScrollViewProps> = {
   scrollEventThrottle: 16,
   ...(isIOS
     ? {
-        decelerationRate: 0.992,
-        bounces: true,
-        alwaysBounceVertical: true,
-      }
+      decelerationRate: 0.992,
+      bounces: true,
+      alwaysBounceVertical: true,
+    }
     : {}),
   ...(isAndroid
     ? {
-        decelerationRate: "fast" as const,
-        overScrollMode: "never" as const,
-        nestedScrollEnabled: true,
-        bounces: false,
-        alwaysBounceVertical: false,
-      }
+      decelerationRate: "fast" as const,
+      overScrollMode: "never" as const,
+      nestedScrollEnabled: true,
+      bounces: false,
+      alwaysBounceVertical: false,
+    }
     : {}),
 };
 
@@ -52,7 +53,7 @@ const canUsePullToRefresh = !isWeb;
 
 export default function Choose() {
   const router = useRouter();
-  
+
   const variants = [
     {
       name: "decay",
@@ -65,7 +66,7 @@ export default function Choose() {
         "If the timer expires, the queen freezes and cannot be moved again.",
         "After your queen freezes, the next major piece you move starts a 20s Decay Timer with the same behavior.",
       ],
-      color: "#1A1A2E"
+      color: "#111629"
     },
     {
       name: "sixpointer",
@@ -82,7 +83,7 @@ export default function Choose() {
         "Foul play: if you capture on your 6th move and opponent has an immediate legal recapture but no moves left, it counts as foul play.",
         "Tie on points: Draw.",
       ],
-      color: "#1A1A2E"
+      color: "#111629"
     },
     {
       name: "crazyhouse",
@@ -95,7 +96,7 @@ export default function Choose() {
         "Pawns cannot be dropped on the 1st or 8th ranks.",
         "With Timer subvariant: each captured piece must be dropped within 10s on your turn or it disappears.",
       ],
-      color: "#1A1A2E"
+      color: "#111629"
     },
     {
       name: "classic",
@@ -106,7 +107,7 @@ export default function Choose() {
         "Flagging: main clock expires → loss on time.",
         "Illegal moves follow standard chess penalties.",
       ],
-      color: "#1A1A2E"
+      color: "#111629"
     },
   ];
 
@@ -219,7 +220,7 @@ export default function Choose() {
   }, [clearRefreshTimeout]);
 
   const handleRefresh = useCallback(() => {
-        // prevent multiple triggers while a refresh is ongoing
+    // prevent multiple triggers while a refresh is ongoing
     if (refreshing || isFetchingLivePlayers) return;
     setRefreshing(true);
     clearRefreshTimeout();
@@ -253,14 +254,14 @@ export default function Choose() {
         refreshing={refreshing}
         onRefresh={handleRefresh}
         enabled={!refreshing}
-        tintColor="#00D9FF"
-        colors={["#00D9FF"]}
+        tintColor="#F5A623"
+        colors={["#F5A623"]}
         progressViewOffset={24}
       />
     );
   }, [handleRefresh, refreshing]);
 
- 
+
 
   const handleVariantSelect = async (variant: string) => {
     if (!userId) {
@@ -343,7 +344,7 @@ export default function Choose() {
 
   // Check if navigation should be hidden (tournament match active)
   const [hideNavigation, setHideNavigation] = useState(shouldHideNavigation());
-  
+
   // Poll navigation state to detect changes
   useEffect(() => {
     const checkNavVisibility = () => {
@@ -352,7 +353,7 @@ export default function Choose() {
         setHideNavigation(currentState);
       }
     };
-    
+
     const interval = setInterval(checkNavVisibility, 500);
     return () => clearInterval(interval);
   }, [hideNavigation]);
@@ -378,13 +379,27 @@ export default function Choose() {
             refreshControl={refreshControl}
           >
             {/* Navigation Buttons */}
-            <View style={chooseScreenStyles.navButtonsContainer}>
-              <TouchableOpacity style={chooseScreenStyles.navButton} onPress={handleLeaderboard}>
-                <Text style={chooseScreenStyles.navButtonText}>Leaderboard</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={chooseScreenStyles.navButton} onPress={() => setShowRulesModal(true)}>
-                <Text style={chooseScreenStyles.navButtonText}>Rules</Text>
-              </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
+              <GlassButton
+                label="Leaderboard"
+                variant="secondary"
+                icon="trophy-outline"
+                iconSize={18}
+                onPress={handleLeaderboard}
+                fullWidth={false}
+                style={{ flex: 1, height: 48, borderRadius: 14 }}
+                textStyle={{ fontSize: 14 }}
+              />
+              <GlassButton
+                label="Rules"
+                variant="secondary"
+                icon="book-outline"
+                iconSize={18}
+                onPress={() => setShowRulesModal(true)}
+                fullWidth={false}
+                style={{ flex: 1, height: 48, borderRadius: 14 }}
+                textStyle={{ fontSize: 14 }}
+              />
             </View>
 
             {/* Heading */}
@@ -393,13 +408,13 @@ export default function Choose() {
             </View>
 
             <Text style={chooseScreenStyles.heading}>Choose Variant</Text>
-            <Text style={{ color: "#A0A0B0", fontSize: 14, marginBottom: 16 }}>
+            <Text style={{ fontFamily: 'Inter_400Regular', color: "#A0A0B8", fontSize: 13, marginBottom: 16 }}>
               Live player counts update in real time
             </Text>
 
             {socketConnecting && (
               <View style={chooseScreenStyles.connectingContainer}>
-                <ActivityIndicator size="large" color="#00D9FF" />
+                <ActivityIndicator size="large" color="#F5A623" />
                 <Text style={chooseScreenStyles.connectingText}>Connecting to server...</Text>
               </View>
             )}
@@ -457,7 +472,7 @@ function Section({ title, items }: { title: string; items: string[] }) {
       <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700', marginBottom: 8 }}>{title}</Text>
       {items.map((it, idx) => (
         <View key={idx} style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 6 }}>
-          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#00D9FF', marginTop: 7, marginRight: 8 }} />
+          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#F5A623', marginTop: 7, marginRight: 8 }} />
           <Text style={{ color: '#ddd', fontSize: 14, lineHeight: 20, flex: 1 }}>{it}</Text>
         </View>
       ))}
@@ -536,8 +551,8 @@ function ChooseScreenSkeleton({ refreshing, onRefresh }: { refreshing: boolean; 
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#00D9FF"
-            colors={["#00D9FF"]}
+            tintColor="#F5A623"
+            colors={["#F5A623"]}
           />
         ) : undefined
       }
@@ -601,7 +616,7 @@ const skeletonStyles = StyleSheet.create({
     borderRadius: 10,
   },
   variantCard: {
-    backgroundColor: "#16213E",
+    backgroundColor: "#171D33",
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,

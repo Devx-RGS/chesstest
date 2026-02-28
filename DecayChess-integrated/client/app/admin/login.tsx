@@ -46,7 +46,7 @@ export default function AdminLoginScreen() {
                 {/* Logo */}
                 <View style={styles.logoWrap}>
                     <View style={styles.logoBg}>
-                        <Ionicons name="shield-checkmark" size={40} color="#00D9FF" />
+                        <Ionicons name="shield-checkmark" size={40} color="#F5A623" />
                     </View>
                     <Text style={styles.logoTitle}>Admin Panel</Text>
                     <Text style={styles.logoSubtitle}>DecayChess Management</Text>
@@ -107,7 +107,7 @@ export default function AdminLoginScreen() {
                     disabled={isLoading || !email || !password}
                 >
                     {isLoading ? (
-                        <ActivityIndicator color="#0F0F23" />
+                        <ActivityIndicator color="#080B14" />
                     ) : (
                         <Text style={styles.btnText}>Sign In</Text>
                     )}
@@ -129,7 +129,7 @@ export default function AdminLoginScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#0F0F23",
+        backgroundColor: "#080B14",
         justifyContent: "center",
         padding: 24,
     },
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         padding: 28,
         borderWidth: 1,
-        borderColor: "rgba(0, 217, 255, 0.15)",
+        borderColor: "rgba(245, 166, 35, 0.15)",
     },
     logoWrap: {
         alignItems: "center",
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
         width: 72,
         height: 72,
         borderRadius: 36,
-        backgroundColor: "rgba(0, 217, 255, 0.1)",
+        backgroundColor: "rgba(245, 166, 35, 0.1)",
         justifyContent: "center",
         alignItems: "center",
         marginBottom: 12,
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     btn: {
         height: 50,
         borderRadius: 14,
-        backgroundColor: "#00D9FF",
+        backgroundColor: "#F5A623",
         justifyContent: "center",
         alignItems: "center",
         marginTop: 8,
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     btnText: {
         fontSize: 16,
         fontWeight: "700",
-        color: "#0F0F23",
+        color: "#080B14",
     },
     backBtn: {
         flexDirection: "row",

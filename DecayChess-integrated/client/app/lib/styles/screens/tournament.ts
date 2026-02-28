@@ -3,10 +3,10 @@ import { StyleSheet } from 'react-native'
 export const tournamentScreenStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0F0F23", // Main background color from Choose.tsx
+    backgroundColor: "#080B14", // Main background color from Choose.tsx
   },
   victoryRushCard: {
-    backgroundColor: "#00D9FF", // Deep purple color
+    backgroundColor: "#F5A623", // Deep purple color
     borderRadius: 16,
     marginBottom: 20,
     marginTop: 100, // Space for the overlapping logo
@@ -103,7 +103,7 @@ export const tournamentScreenStyles = StyleSheet.create({
   connectingContainer: {
     marginBottom: 20,
     alignItems: "center",
-    backgroundColor: "#1A1A2E", // Card background from Choose.tsx
+    backgroundColor: "#111629", // Card background from Choose.tsx
     borderRadius: 16,
     padding: 20,
     shadowColor: "#000",
@@ -124,7 +124,7 @@ export const tournamentScreenStyles = StyleSheet.create({
     marginTop: 5,
   },
   matchFoundText: {
-    color: "#00D9FF", // Green accent color from Choose.tsx
+    color: "#F5A623", // Green accent color from Choose.tsx
     fontSize: 20,
     fontWeight: "bold",
     marginTop: 15,
@@ -181,7 +181,7 @@ export const tournamentScreenStyles = StyleSheet.create({
     lineHeight: 18,
   },
   statusText: {
-    color: "#00D9FF",
+    color: "#F5A623",
     fontSize: 12,
     fontStyle: "italic",
     marginTop: 5,
@@ -212,7 +212,7 @@ export const tournamentScreenStyles = StyleSheet.create({
     borderWidth: 1,
   },
   rulesTitle: {
-    color: "#00D9FF", // Green title from Choose.tsx
+    color: "#F5A623", // Green title from Choose.tsx
     fontSize: 22,
     fontWeight: "bold",
     marginBottom: 16,
@@ -229,7 +229,7 @@ export const tournamentScreenStyles = StyleSheet.create({
     textAlign: "left",
   },
   closeRulesButton: {
-    backgroundColor: "#00D9FF", // Green button from Choose.tsx
+    backgroundColor: "#F5A623", // Green button from Choose.tsx
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 24,

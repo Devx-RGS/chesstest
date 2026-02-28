@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 
 // Emulator/simulator-friendly host
 // Use your machine's LAN IP for physical device testing
-const DEFAULT_HOST = '192.168.1.37';
+const DEFAULT_HOST = '10.0.51.95';
 const DEFAULT_PORT = 3000;
 
 /** 
@@ -67,9 +67,9 @@ export const ROUTES = {
  * =========================================================
  */
 export const COLORS = {
-  PRIMARY: '#00D9FF',
-  BACKGROUND: '#0F0F23',
-  SECONDARY: '#1A1A2E',
+  PRIMARY: '#F5A623',
+  BACKGROUND: '#080B14',
+  SECONDARY: '#111629',
   TEXT: '#E0E0E8',
   TEXT_SECONDARY: '#A0A0B0',
 } as const;

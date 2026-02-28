@@ -64,7 +64,7 @@ export function ReelActions({
                 <Ionicons
                     name={isSaved ? "bookmark" : "bookmark-outline"}
                     size={28}
-                    color={isSaved ? "#00D9FF" : "#FFFFFF"}
+                    color={isSaved ? "#F5A623" : "#FFFFFF"}
                 />
                 <Text style={styles.actionText}>Save</Text>
             </TouchableOpacity>

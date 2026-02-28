@@ -303,7 +303,7 @@ export default function TournamentScreen() {
   } else if (loading) {
     return (
       <View style={tournamentScreenStyles.container}>
-        <ActivityIndicator size="large" color="#00D9FF" />
+        <ActivityIndicator size="large" color="#F5A623" />
         <Text style={tournamentScreenStyles.infoText}>Waiting for match to be established...</Text>
       </View>
     )
@@ -341,7 +341,7 @@ export default function TournamentScreen() {
         {isTournamentQueueing && (
           <View style={tournamentScreenStyles.connectingContainer}>
             <Text style={tournamentScreenStyles.connectingText}>Searching for tournament match...</Text>
-            <ActivityIndicator size="small" color="#00D9FF" style={{ marginVertical: 10 }} />
+            <ActivityIndicator size="small" color="#F5A623" style={{ marginVertical: 10 }} />
             <Text style={tournamentScreenStyles.connectingTimer}>Time in queue: {timer}s</Text>
             {opponent && !isMatchFound && <Text style={tournamentScreenStyles.matchFoundText}>Match Found with {opponent}!</Text>}
           </View>
@@ -363,7 +363,7 @@ export default function TournamentScreen() {
             <Text style={tournamentScreenStyles.statusText}>Currently in queue - Tap to leave</Text>
           )}
           {isJoiningTournament && (
-            <ActivityIndicator size="small" color="#00D9FF" style={{ marginTop: 5 }} />
+            <ActivityIndicator size="small" color="#F5A623" style={{ marginTop: 5 }} />
           )}
         </View>
       </ScrollView>

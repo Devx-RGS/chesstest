@@ -1,7 +1,7 @@
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import Octicons from '@expo/vector-icons/Octicons';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { COLORS, GLASS } from '../../lib/styles/base';
 
 interface TopNavBarProps {
   isChooseScreen: boolean;
@@ -10,113 +10,80 @@ interface TopNavBarProps {
 }
 
 export default function TopNavBar({ isChooseScreen, onSelectChoose, onSelectTournament }: TopNavBarProps) {
-  const [hoveredButton, setHoveredButton] = useState<'1v1' | 'tournament' | null>(null);
-  const iconColor = '#FFFFFF';
-  const activeColor = '#00D9FF';
-  const iconSize = 26;
+  const iconSize = 20;
 
   return (
     <View style={styles.topNavBar}>
-      <TouchableOpacity
-        style={[
-          styles.topNavButton,
-          isChooseScreen ? styles.activeButton : styles.inactiveButton
-        ]}
-        onPress={onSelectChoose}
-        onPressIn={() => setHoveredButton('1v1')}
-        onPressOut={() => setHoveredButton(null)}
-      >
-        <View style={styles.iconContainer}>
+      <View style={styles.pillContainer}>
+        <TouchableOpacity
+          style={[styles.pillTab, isChooseScreen && styles.pillTabActive]}
+          onPress={onSelectChoose}
+          activeOpacity={0.7}
+        >
           <MaterialCommunityIcons
             name="chess-knight"
             size={iconSize}
-            color={hoveredButton === '1v1' || isChooseScreen ? activeColor : iconColor}
-            style={styles.navIcon}
+            color={isChooseScreen ? COLORS.white : COLORS.mutedText}
           />
-          <Text
-            style={[
-              styles.topNavButtonText,
-              (hoveredButton === '1v1' || isChooseScreen) && styles.hoveredText,
-            ]}
-          >
+          <Text style={[styles.tabText, isChooseScreen && styles.tabTextActive]}>
             1 VS 1
           </Text>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[
-          styles.topNavButton,
-          !isChooseScreen ? styles.activeButton : styles.inactiveButton
-        ]}
-        onPress={onSelectTournament}
-        onPressIn={() => setHoveredButton('tournament')}
-        onPressOut={() => setHoveredButton(null)}
-      >
-        <View style={styles.iconContainer}>
+        <TouchableOpacity
+          style={[styles.pillTab, !isChooseScreen && styles.pillTabActive]}
+          onPress={onSelectTournament}
+          activeOpacity={0.7}
+        >
           <Ionicons
             name="trophy-outline"
             size={iconSize}
-            color={hoveredButton === 'tournament' || !isChooseScreen ? activeColor : iconColor}
-            style={styles.navIcon}
+            color={!isChooseScreen ? COLORS.white : COLORS.mutedText}
           />
-          <Text
-            style={[
-              styles.topNavButtonText,
-              (hoveredButton === 'tournament' || !isChooseScreen) && styles.hoveredText,
-            ]}
-          >
+          <Text style={[styles.tabText, !isChooseScreen && styles.tabTextActive]}>
             TOURNAMENT
           </Text>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   topNavBar: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
     paddingHorizontal: 16,
-    backgroundColor: "#1A1A2E",
-    gap: 32,
+    paddingVertical: 10,
+    backgroundColor: 'transparent',
   },
-  topNavButton: {
-    position: 'relative',
-    height: 48,
+  pillContainer: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.glassBg,
+    borderRadius: GLASS.borderRadiusPill,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+    padding: 3,
+  },
+  pillTab: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: GLASS.borderRadiusPill,
+    gap: 6,
   },
-  activeButton: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#00D9FF',
+  pillTabActive: {
+    backgroundColor: COLORS.accentGlow,
+    borderWidth: 1,
+    borderColor: COLORS.accentDim,
   },
-  inactiveButton: {
-    opacity: 0.7,
-  },
-  iconContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'column',
-    gap: 0,
-  },
-  navIcon: {
-    marginBottom: 2,
-  },
-  hoveredText: {
-    color: '#00D9FF',
-  },
-  topNavButtonText: {
-    color: "#FFFFFF",
+  tabText: {
+    color: COLORS.mutedText,
     fontSize: 11,
-    fontWeight: "800",
-    textAlign: 'center',
+    fontWeight: '700',
     letterSpacing: 1,
   },
-  inactiveText: {
-    opacity: 0.7,
+  tabTextActive: {
+    color: COLORS.white,
   },
 });

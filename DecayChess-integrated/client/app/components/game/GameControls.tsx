@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 10,
-    backgroundColor: '#2C2F33',
+    backgroundColor: '#171D33',
     borderRadius: 8,
     marginTop: 10,
   },
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#2C2F33',
+    backgroundColor: '#171D33',
     borderRadius: 10,
     padding: 20,
     minWidth: 250,

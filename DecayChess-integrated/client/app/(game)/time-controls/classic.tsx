@@ -48,7 +48,7 @@ export default function ClassicTimeControl() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#0F0F23" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#080B14" }}>
       <View style={{ flex: 1, paddingHorizontal: 20 }}>
         <View
           style={{
@@ -63,7 +63,7 @@ export default function ClassicTimeControl() {
             style={{ paddingVertical: 6, paddingHorizontal: 4 }}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Text style={{ color: "#00D9FF", fontSize: 18 }}>←</Text>
+            <Text style={{ color: "#F5A623", fontSize: 18 }}>←</Text>
           </TouchableOpacity>
           <Text style={{ color: "#fff", fontSize: 20, fontWeight: "bold" }}>Classic Time Control</Text>
           <View style={{ width: 24 }} />
@@ -78,7 +78,7 @@ export default function ClassicTimeControl() {
           key={tc.key}
           onPress={() => setSelected(idx)}
           style={{
-            backgroundColor: selected === idx ? "#00D9FF" : "#2C2F33",
+            backgroundColor: selected === idx ? "#F5A623" : "#171D33",
             borderRadius: 14,
             padding: 22,
             marginBottom: 18,
@@ -92,13 +92,13 @@ export default function ClassicTimeControl() {
             elevation: 2,
           }}
         >
-          <Text style={{ color: selected === idx ? "#fff" : "#00D9FF", fontSize: 22, fontWeight: "bold", marginBottom: 6 }}>{tc.label}</Text>
+          <Text style={{ color: selected === idx ? "#fff" : "#F5A623", fontSize: 22, fontWeight: "bold", marginBottom: 6 }}>{tc.label}</Text>
           <Text style={{ color: "#A0A0B0", fontSize: 16 }}>{tc.description}</Text>
         </TouchableOpacity>
       ))}
           <TouchableOpacity
             style={{
-              backgroundColor: "#00D9FF",
+              backgroundColor: "#F5A623",
               borderRadius: 10,
               paddingVertical: 14,
               paddingHorizontal: 40,

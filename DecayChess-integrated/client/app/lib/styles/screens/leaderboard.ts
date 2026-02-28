@@ -1,33 +1,14 @@
 import { Dimensions, StyleSheet } from 'react-native';
-import { BORDER_RADIUS, COLORS, FONT_SIZES, SHADOWS, SPACING } from '../base';
+import { BORDER_RADIUS, COLORS, FONT_SIZES, GLASS, SHADOWS, SPACING } from '../base';
 
 const { width: screenWidth } = Dimensions.get('window');
-
-// Leaderboard screen specific colors
-const LEADERBOARD_COLORS = {
-  screenBackground: '#0F0F23',
-  cardBackground: '#1A1A2E',
-  topThreeCard: '#1A1A2E',
-  rankBadgeGold: '#3A3A3C',
-  rankBadgeSilver: '#3A3A3C',
-  rankBadgeBronze: '#3A3A3C',
-  rankBadgeDefault: 'rgba(255, 255, 255, 0.1)',
-  borderColor: 'rgba(255, 255, 255, 0.1)',
-  topThreeBorder: 'rgba(255, 255, 255, 0.2)',
-  goldBorder: 'rgba(255, 255, 255, 0.4)',
-  silverBorder: 'rgba(255, 255, 255, 0.3)',
-  bronzeBorder: 'rgba(255, 255, 255, 0.2)',
-  secondaryText: 'rgba(255, 255, 255, 0.6)',
-  tertiaryText: 'rgba(255, 255, 255, 0.5)',
-  dividerColor: 'rgba(255, 255, 255, 0.15)',
-}
 
 export const leaderboardScreenStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: LEADERBOARD_COLORS.screenBackground,
+    backgroundColor: COLORS.background,
   },
-  
+
   // Header
   header: {
     paddingHorizontal: SPACING.xl,
@@ -37,17 +18,17 @@ export const leaderboardScreenStyles = StyleSheet.create({
   },
   title: {
     color: COLORS.white,
-    fontSize: Math.min(screenWidth * 0.08, 32),
-    fontWeight: "800",
-    textAlign: "center",
+    fontSize: Math.min(screenWidth * 0.08, 30),
+    fontWeight: '700',
+    textAlign: 'center',
     marginBottom: SPACING.sm,
     letterSpacing: 0.5,
   },
   subtitle: {
-    color: LEADERBOARD_COLORS.secondaryText,
-    fontSize: Math.min(screenWidth * 0.04, 16),
-    fontWeight: "500",
-    textAlign: "center",
+    color: COLORS.secondaryText,
+    fontSize: Math.min(screenWidth * 0.04, 15),
+    fontWeight: '500',
+    textAlign: 'center',
   },
 
   // Loading
@@ -57,9 +38,9 @@ export const leaderboardScreenStyles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: COLORS.white,
+    color: COLORS.primaryText,
     fontSize: FONT_SIZES.large,
-    fontWeight: "500",
+    fontWeight: '500',
     marginTop: SPACING.md,
   },
 
@@ -75,25 +56,25 @@ export const leaderboardScreenStyles = StyleSheet.create({
     marginBottom: SPACING.lg,
   },
   errorText: {
-    color: LEADERBOARD_COLORS.secondaryText,
+    color: COLORS.secondaryText,
     fontSize: FONT_SIZES.large,
-    fontWeight: "500",
-    textAlign: "center",
+    fontWeight: '500',
+    textAlign: 'center',
     marginBottom: SPACING.xl,
     lineHeight: 24,
   },
   retryButton: {
-    backgroundColor: LEADERBOARD_COLORS.cardBackground,
+    backgroundColor: COLORS.glassBgLight,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.xxl,
-    borderRadius: BORDER_RADIUS.medium,
+    borderRadius: BORDER_RADIUS.pill,
     borderWidth: 1,
-    borderColor: LEADERBOARD_COLORS.borderColor,
+    borderColor: COLORS.glassBorderLight,
   },
   retryButtonText: {
     color: COLORS.white,
     fontSize: FONT_SIZES.large,
-    fontWeight: "600",
+    fontWeight: '600',
   },
 
   // Scroll Content
@@ -108,61 +89,64 @@ export const leaderboardScreenStyles = StyleSheet.create({
   fullRankingsTitle: {
     color: COLORS.white,
     fontSize: FONT_SIZES.xlarge,
-    fontWeight: "700",
+    fontWeight: '700',
     marginBottom: SPACING.lg,
+    letterSpacing: 0.3,
   },
 
   // Player Cards
   playerCard: {
-    backgroundColor: LEADERBOARD_COLORS.cardBackground,
-    borderRadius: BORDER_RADIUS.large,
+    backgroundColor: COLORS.glassBg,
+    borderRadius: GLASS.borderRadius,
     padding: SPACING.xl,
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.md,
     borderWidth: 1,
-    borderColor: LEADERBOARD_COLORS.borderColor,
-    ...SHADOWS.small,
+    borderColor: COLORS.glassBorder,
+    ...SHADOWS.glass,
   },
   topThreeCard: {
-    borderColor: LEADERBOARD_COLORS.topThreeBorder,
+    borderColor: COLORS.glassBorderLight,
     borderWidth: 1,
-    backgroundColor: LEADERBOARD_COLORS.topThreeCard,
+    backgroundColor: COLORS.glassBgLight,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: SPACING.lg,
   },
-  
+
   // Rank Badge
   rankBadge: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: SPACING.lg,
   },
   goldRank: {
-    backgroundColor: LEADERBOARD_COLORS.rankBadgeGold,
-    borderWidth: 2,
-    borderColor: LEADERBOARD_COLORS.goldBorder,
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 215, 0, 0.5)',
   },
   silverRank: {
-    backgroundColor: LEADERBOARD_COLORS.rankBadgeSilver,
+    backgroundColor: 'rgba(192, 192, 192, 0.12)',
     borderWidth: 1,
-    borderColor: LEADERBOARD_COLORS.silverBorder,
+    borderColor: 'rgba(192, 192, 192, 0.4)',
   },
   bronzeRank: {
-    backgroundColor: LEADERBOARD_COLORS.rankBadgeBronze,
+    backgroundColor: 'rgba(205, 127, 50, 0.12)',
     borderWidth: 1,
-    borderColor: LEADERBOARD_COLORS.bronzeBorder,
+    borderColor: 'rgba(205, 127, 50, 0.4)',
   },
   defaultRank: {
-    backgroundColor: LEADERBOARD_COLORS.rankBadgeDefault,
+    backgroundColor: COLORS.glassBg,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
   },
   rankText: {
     fontSize: FONT_SIZES.large,
-    fontWeight: "700",
+    fontWeight: '700',
     color: COLORS.white,
   },
 
@@ -173,32 +157,38 @@ export const leaderboardScreenStyles = StyleSheet.create({
   },
   playerName: {
     color: COLORS.white,
-    fontSize: Math.min(screenWidth * 0.045, 18),
-    fontWeight: "600",
-    marginBottom: 4,
+    fontSize: Math.min(screenWidth * 0.045, 17),
+    fontWeight: '600',
+    marginBottom: 3,
   },
   playerEmail: {
-    color: LEADERBOARD_COLORS.tertiaryText,
-    fontSize: Math.min(screenWidth * 0.035, 14),
-    fontWeight: "400",
+    color: COLORS.mutedText,
+    fontSize: Math.min(screenWidth * 0.035, 13),
+    fontWeight: '400',
   },
 
   // Rating
   ratingContainer: {
     alignItems: 'center',
+    backgroundColor: COLORS.accentGlow,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.accentDim,
   },
   ratingValue: {
     color: COLORS.white,
-    fontSize: Math.min(screenWidth * 0.05, 20),
-    fontWeight: "700",
-    marginBottom: 2,
+    fontSize: Math.min(screenWidth * 0.045, 18),
+    fontWeight: '700',
+    marginBottom: 1,
   },
   ratingLabel: {
-    color: LEADERBOARD_COLORS.secondaryText,
-    fontSize: Math.min(screenWidth * 0.03, 12),
-    fontWeight: "500",
+    color: COLORS.secondaryText,
+    fontSize: Math.min(screenWidth * 0.025, 10),
+    fontWeight: '600',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 1,
   },
 
   // Stats
@@ -206,9 +196,9 @@ export const leaderboardScreenStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingTop: SPACING.lg,
+    paddingTop: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: LEADERBOARD_COLORS.borderColor,
+    borderTopColor: COLORS.glassBorder,
   },
   statBox: {
     alignItems: 'center',
@@ -216,21 +206,21 @@ export const leaderboardScreenStyles = StyleSheet.create({
   },
   statValue: {
     color: COLORS.white,
-    fontSize: Math.min(screenWidth * 0.04, 16),
-    fontWeight: "600",
-    marginBottom: 4,
+    fontSize: Math.min(screenWidth * 0.04, 15),
+    fontWeight: '600',
+    marginBottom: 3,
   },
   statLabel: {
-    color: LEADERBOARD_COLORS.tertiaryText,
-    fontSize: Math.min(screenWidth * 0.03, 12),
-    fontWeight: "500",
+    color: COLORS.mutedText,
+    fontSize: Math.min(screenWidth * 0.028, 11),
+    fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   statDivider: {
     width: 1,
-    height: 30,
-    backgroundColor: LEADERBOARD_COLORS.dividerColor,
+    height: 28,
+    backgroundColor: COLORS.glassBorder,
     marginHorizontal: SPACING.sm,
   },
 

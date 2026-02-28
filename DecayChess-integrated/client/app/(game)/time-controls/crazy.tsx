@@ -49,7 +49,7 @@ export default function CrazyTimeControl() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#0F0F23" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#080B14" }}>
       <View style={{ flex: 1, paddingHorizontal: 20 }}>
         <View
           style={{
@@ -64,7 +64,7 @@ export default function CrazyTimeControl() {
             style={{ paddingVertical: 6, paddingHorizontal: 4 }}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Text style={{ color: "#00D9FF", fontSize: 18 }}>←</Text>
+            <Text style={{ color: "#F5A623", fontSize: 18 }}>←</Text>
           </TouchableOpacity>
           <Text style={{ color: "#fff", fontSize: 20, fontWeight: "bold" }}>Crazyhouse Time Control</Text>
           <View style={{ width: 24 }} />
@@ -89,7 +89,7 @@ export default function CrazyTimeControl() {
                 }}
                 disabled={isDisabled}
                 style={{
-                  backgroundColor: isSelected && !isDisabled ? "#00D9FF" : isDisabled ? "#1A1A1A" : "#2C2F33",
+                  backgroundColor: isSelected && !isDisabled ? "#F5A623" : isDisabled ? "#1A1A1A" : "#171D33",
                   borderRadius: 14,
                   padding: 22,
                   marginBottom: 18,
@@ -105,7 +105,7 @@ export default function CrazyTimeControl() {
                 }}
               >
                 <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
-                  <Text style={{ color: isSelected && !isDisabled ? "#fff" : isDisabled ? "#888" : "#00D9FF", fontSize: 22, fontWeight: "bold" }}>
+                  <Text style={{ color: isSelected && !isDisabled ? "#fff" : isDisabled ? "#888" : "#F5A623", fontSize: 22, fontWeight: "bold" }}>
                     {tc.label}
                   </Text>
                   {isComingSoon && (
@@ -130,7 +130,7 @@ export default function CrazyTimeControl() {
           })}
           <TouchableOpacity
             style={{
-              backgroundColor: timeControls[selected]?.disabled ? "#666" : "#00D9FF",
+              backgroundColor: timeControls[selected]?.disabled ? "#666" : "#F5A623",
               borderRadius: 10,
               paddingVertical: 14,
               paddingHorizontal: 40,

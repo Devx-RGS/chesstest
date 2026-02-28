@@ -6,7 +6,7 @@ export default function AdminLayout() {
         <Stack
             screenOptions={{
                 headerShown: false,
-                contentStyle: { backgroundColor: "#0F0F23" },
+                contentStyle: { backgroundColor: "#080B14" },
                 animation: "slide_from_right",
             }}
         >

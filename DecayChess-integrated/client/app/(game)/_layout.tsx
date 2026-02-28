@@ -13,13 +13,13 @@ export default function GameLayout() {
       <SafeAreaView
         style={{
           flex: 1,
-          backgroundColor: "#0F0F23",
+          backgroundColor: "#080B14",
           justifyContent: "center",
           alignItems: "center",
         }}
       >
-        <StatusBar style="light" backgroundColor="#0F0F23" translucent={false} />
-        <ActivityIndicator size="large" color="#00D9FF" />
+        <StatusBar style="light" backgroundColor="#080B14" translucent={false} />
+        <ActivityIndicator size="large" color="#F5A623" />
         <Text style={{ color: "#fff", marginTop: 16, fontSize: 16 }}>
           Checking login status...
         </Text>

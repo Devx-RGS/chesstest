@@ -1,13 +1,18 @@
+// Glassmorphism Login — Updated 2026-02-27
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { ActivityIndicator, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Image, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from 'expo-linear-gradient';
 import { loginUser } from "../lib/APIservice/service";
 import { useAuthStore } from "../lib/stores/authStore";
 import Skeleton from "../components/ui/Skeleton";
+import GlassCard from "../components/ui/GlassCard";
+import GlassButton from "../components/ui/GlassButton";
+import { COLORS, GLASS, SHADOWS, FONTS } from "../lib/styles/base";
+import { Ionicons } from "@expo/vector-icons";
 
-// Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function Login() {
@@ -17,13 +22,11 @@ export default function Login() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const router = useRouter();
 
-  // Clear error when user starts typing
   const handleInputChange = (setter: (val: string) => void) => (value: string) => {
     setErrorMessage(null);
     setter(value);
   };
 
-  // If already authenticated, skip login screen entirely
   React.useEffect(() => {
     let mounted = true;
     (async () => {
@@ -33,40 +36,25 @@ export default function Login() {
           AsyncStorage.getItem('user'),
         ]);
         if (mounted && token && user) {
-          console.log('[Login] ✅ User already authenticated, redirecting...');
           router.replace('/(main)/choose');
         }
       } catch (err) {
         console.error('[Login] ⚠️ Error checking auth state:', err);
       }
     })();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [router]);
 
   const validateInputs = (): string | null => {
-    if (!email.trim()) {
-      return 'Please enter your email';
-    }
-    if (!EMAIL_REGEX.test(email.trim())) {
-      return 'Please enter a valid email address';
-    }
-    if (!password) {
-      return 'Please enter your password';
-    }
+    if (!email.trim()) return 'Please enter your email';
+    if (!EMAIL_REGEX.test(email.trim())) return 'Please enter a valid email address';
+    if (!password) return 'Please enter your password';
     return null;
   };
 
   const handleLogin = async () => {
-    if (isLoading) {
-      return;
-    }
-
-    // Clear previous errors
+    if (isLoading) return;
     setErrorMessage(null);
-
-    // Validate inputs
     const validationError = validateInputs();
     if (validationError) {
       setErrorMessage(validationError);
@@ -74,18 +62,14 @@ export default function Login() {
     }
 
     setIsLoading(true);
-    console.log('[Login] 🚀 Attempting login for:', email.trim());
     let shouldResetLoading = true;
 
     try {
       const result = await loginUser(email.trim().toLowerCase(), password);
-
       if (result.success) {
-        console.log('[Login] ✅ Login successful');
         const data = result.data;
         await AsyncStorage.setItem('token', data.token);
         await AsyncStorage.setItem('user', JSON.stringify(data.user));
-        // Sync to Zustand authStore so reels/admin features can use it
         useAuthStore.getState().login(
           {
             id: data.user._id || data.user.id || '',
@@ -98,16 +82,12 @@ export default function Login() {
         shouldResetLoading = false;
         router.replace('/(main)/choose');
       } else {
-        console.log('[Login] ❌ Login failed:', result.error);
         setErrorMessage(result.error || 'Login failed. Please try again.');
       }
     } catch (err) {
-      console.error('[Login] 💥 Unexpected error:', err);
       setErrorMessage('An unexpected error occurred. Please try again.');
     } finally {
-      if (shouldResetLoading) {
-        setIsLoading(false);
-      }
+      if (shouldResetLoading) setIsLoading(false);
     }
   };
 
@@ -120,78 +100,93 @@ export default function Login() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#0F0F23" }}>
-      <View style={{ flex: 1, paddingHorizontal: 20 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 16 }}>
+    <SafeAreaView style={styles.safeArea}>
+      <LinearGradient
+        colors={['#080B14', '#0E1228', '#0C0F20', '#080B14']}
+        locations={[0, 0.3, 0.7, 1]}
+        style={StyleSheet.absoluteFillObject}
+      />
+      {/* Ambient orbs */}
+      <View style={styles.orbTopRight} />
+      <View style={styles.orbBottomLeft} />
+
+      <View style={styles.mainContainer}>
+        {/* Top bar */}
+        <View style={styles.topBar}>
           <TouchableOpacity
             onPress={handleGoBack}
-            style={{ paddingVertical: 6, paddingHorizontal: 4 }}
+            style={styles.backButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Text style={{ color: "#00D9FF", fontSize: 18 }}>←</Text>
+            <Text style={styles.backArrow}>←</Text>
           </TouchableOpacity>
-          <Text style={{ color: "#fff", fontSize: 20, fontWeight: "bold" }}>Login</Text>
-          <View style={{ width: 24 }} />
+          <Text style={styles.topTitle}>Login</Text>
+          <View style={{ width: 32 }} />
         </View>
 
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+        {/* Content */}
+        <View style={styles.centerContent}>
           <Image
             source={{ uri: "https://www.chess.com/bundles/web/images/offline-play/standardboard.84a92436.png" }}
-            style={{ width: 80, height: 80, marginBottom: 16, borderRadius: 12 }}
+            style={styles.logo}
           />
-          <Text style={{ color: "#fff", fontSize: 28, fontWeight: "bold", marginBottom: 8 }}>Welcome Back</Text>
-          <Text style={{ color: "#A0A0B0", fontSize: 16, marginBottom: 24 }}>Log in to continue your chess journey!</Text>
+          <Text style={styles.heading}>Welcome Back</Text>
+          <Text style={styles.subtitle}>Log in to continue your chess journey</Text>
 
-          {/* Error Message Display */}
-          {errorMessage && (
-            <View style={{ width: "100%", backgroundColor: "#dc262620", borderRadius: 10, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: "#dc2626" }}>
-              <Text style={{ color: "#ef4444", fontSize: 14, textAlign: "center" }}>⚠️ {errorMessage}</Text>
+          {/* Glass Card Form */}
+          <GlassCard style={styles.formCard}>
+            {errorMessage && (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText}>⚠️ {errorMessage}</Text>
+              </View>
+            )}
+
+            <TextInput
+              placeholder="Email"
+              placeholderTextColor={COLORS.mutedText}
+              value={email}
+              onChangeText={handleInputChange(setEmail)}
+              style={styles.input}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              editable={!isLoading}
+            />
+            <TextInput
+              placeholder="Password"
+              placeholderTextColor={COLORS.mutedText}
+              value={password}
+              onChangeText={handleInputChange(setPassword)}
+              style={[styles.input, { marginBottom: 20 }]}
+              secureTextEntry
+              editable={!isLoading}
+            />
+
+            <GlassButton
+              label="Login & Play"
+              onPress={handleLogin}
+              loading={isLoading}
+              disabled={isLoading}
+              fullWidth
+            />
+          </GlassCard>
+
+          <TouchableOpacity onPress={() => router.push("/(auth)/signup")} style={{ marginTop: 20 }}>
+            <Text style={styles.linkText}>
+              Don't have an account? <Text style={styles.linkAccent}>Sign up</Text>
+            </Text>
+          </TouchableOpacity>
+
+          <View style={styles.footerBadge}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+              <Ionicons name="trophy" size={18} color={COLORS.accent} style={{ marginRight: 8 }} />
+              <Text style={styles.footerBadgeTitle}>Compete, win, and climb!</Text>
             </View>
-          )}
-
-          <TextInput
-            placeholder="Email"
-            placeholderTextColor="#A0A0B0"
-            value={email}
-            onChangeText={handleInputChange(setEmail)}
-            style={{ width: "100%", backgroundColor: "#2C2F33", color: "#fff", borderWidth: 0, marginBottom: 12, padding: 14, borderRadius: 10, fontSize: 16 }}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            editable={!isLoading}
-          />
-          <TextInput
-            placeholder="Password"
-            placeholderTextColor="#A0A0B0"
-            value={password}
-            onChangeText={handleInputChange(setPassword)}
-            style={{ width: "100%", backgroundColor: "#2C2F33", color: "#fff", borderWidth: 0, marginBottom: 20, padding: 14, borderRadius: 10, fontSize: 16 }}
-            secureTextEntry
-            editable={!isLoading}
-          />
-          <TouchableOpacity
-            onPress={handleLogin}
-            style={{
-              backgroundColor: "#00D9FF",
-              paddingVertical: 16,
-              borderRadius: 30,
-              width: "100%",
-              alignItems: "center",
-              marginBottom: 16,
-              opacity: isLoading ? 0.6 : 1,
-            }}
-            disabled={isLoading}
-          >
-            <Text style={{ color: "#fff", fontSize: 18, fontWeight: "bold" }}>Login & Play</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push("/(auth)/signup")} style={{ marginTop: 8 }}>
-            <Text style={{ color: "#A0A0B0", fontSize: 16 }}>Don't have an account? <Text style={{ color: "#00D9FF", fontWeight: "bold" }}>Sign up</Text></Text>
-          </TouchableOpacity>
-          <View style={{ marginTop: 32, alignItems: "center" }}>
-            <Text style={{ color: "#fff", fontSize: 16, fontWeight: "bold" }}>🏆 Compete, win, and climb the leaderboard!</Text>
-            <Text style={{ color: "#A0A0B0", fontSize: 14, marginTop: 4 }}>Track your stats and earn rewards.</Text>
+            <Text style={styles.footerBadgeSub}>Track your stats and earn rewards.</Text>
           </View>
         </View>
       </View>
+
+      {/* Loading overlay */}
       {isLoading && (
         <View style={styles.loadingOverlay}>
           <View style={styles.loadingCard}>
@@ -200,7 +195,7 @@ export default function Login() {
             <Skeleton width="80%" height={16} style={styles.loadingLine} />
             <Skeleton width="100%" height={48} style={styles.loadingLine} />
             <Skeleton width="100%" height={48} style={styles.loadingLine} />
-            <Skeleton width="70%" height={48} style={[styles.loadingLine, styles.loadingLineLast]} />
+            <Skeleton width="70%" height={48} style={{ marginBottom: 0, borderRadius: 12 }} />
           </View>
         </View>
       )}
@@ -209,29 +204,158 @@ export default function Login() {
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  orbTopRight: {
+    position: 'absolute',
+    top: -80,
+    right: -80,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(245, 166, 35, 0.05)',
+  },
+  orbBottomLeft: {
+    position: 'absolute',
+    bottom: -60,
+    left: -60,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(108, 60, 224, 0.04)',
+  },
+  mainContainer: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+  },
+  backButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: COLORS.glassBg,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backArrow: {
+    color: COLORS.accent,
+    fontSize: 16,
+  },
+  topTitle: {
+    fontFamily: FONTS.semibold,
+    color: COLORS.white,
+    fontSize: 18,
+  },
+  centerContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logo: {
+    width: 72,
+    height: 72,
+    marginBottom: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+  },
+  heading: {
+    fontFamily: FONTS.bold,
+    color: COLORS.white,
+    fontSize: 30,
+    marginBottom: 8,
+    letterSpacing: 0.5,
+  },
+  subtitle: {
+    fontFamily: FONTS.regular,
+    color: COLORS.secondaryText,
+    fontSize: 16,
+    marginBottom: 32,
+  },
+  formCard: {
+    width: '100%',
+  },
+  errorBox: {
+    backgroundColor: 'rgba(255, 92, 92, 0.12)',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 92, 92, 0.3)',
+  },
+  errorText: {
+    fontFamily: FONTS.medium,
+    color: '#FF6B6B',
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  input: {
+    fontFamily: FONTS.regular,
+    width: '100%',
+    backgroundColor: COLORS.glassBgLight,
+    color: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+    marginBottom: 12,
+    padding: 14,
+    borderRadius: 12,
+    fontSize: 15,
+  },
+  linkText: {
+    fontFamily: FONTS.regular,
+    color: COLORS.secondaryText,
+    fontSize: 15,
+  },
+  linkAccent: {
+    fontFamily: FONTS.bold,
+    color: COLORS.accent,
+  },
+  footerBadge: {
+    marginTop: 36,
+    alignItems: 'center',
+  },
+  footerBadgeTitle: {
+    fontFamily: FONTS.semibold,
+    color: COLORS.white,
+    fontSize: 15,
+  },
+  footerBadgeSub: {
+    fontFamily: FONTS.regular,
+    color: COLORS.secondaryText,
+    fontSize: 13,
+    marginTop: 4,
+  },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: 32,
   },
   loadingCard: {
-    width: "100%",
+    width: '100%',
     maxWidth: 360,
-    backgroundColor: "#2C2F33",
-    borderRadius: 16,
+    backgroundColor: COLORS.surfaceLight,
+    borderRadius: GLASS.borderRadius,
     padding: 24,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
   },
   loadingLine: {
     marginBottom: 16,
     borderRadius: 12,
   },
-  loadingLineLast: {
-    marginBottom: 0,
-  },
   loadingLineCentered: {
-    alignSelf: "center",
+    alignSelf: 'center',
     marginBottom: 24,
   },
 });

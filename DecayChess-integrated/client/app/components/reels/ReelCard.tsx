@@ -11,6 +11,7 @@ import {
 import { Video, ResizeMode, AVPlaybackStatus, Audio } from "expo-av";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import { FONTS } from "../../lib/styles/base";
 import { Reel } from "../../lib/types/reel";
 import { ReelActions } from "./ReelActions";
 import { useFocusEffect } from "expo-router";
@@ -263,7 +264,7 @@ export function ReelCard({
             {/* Loading */}
             {isLoading && (
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#00D9FF" />
+                    <ActivityIndicator size="large" color="#F5A623" />
                 </View>
             )}
 
@@ -342,14 +343,17 @@ export function ReelCard({
             {showChallengeCTA && hasInteractiveChallenge && (
                 <View style={styles.challengeOverlay}>
                     <View style={styles.challengeCard}>
-                        <Text style={styles.challengeTitle}>♟ Interactive Challenge!</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                            <Ionicons name="game-controller" size={24} color="#fff" style={{ marginRight: 8 }} />
+                            <Text style={styles.challengeTitle}>Interactive Challenge!</Text>
+                        </View>
                         <Text style={styles.challengeDesc}>
                             {reel.interactive?.challengePrompt || reel.content.description || 'Can you find the best move?'}
                         </Text>
                         {reel.interactive?.playerColor ? (
                             <>
                                 <View style={styles.forcedColorBadge}>
-                                    <Text style={styles.forcedColorEmoji}>{reel.interactive.playerColor === 'w' ? '♔' : '♚'}</Text>
+                                    <Ionicons name="person" size={28} color={reel.interactive.playerColor === 'w' ? "#f0f0f0" : "#333"} />
                                     <Text style={styles.forcedColorText}>Play as {reel.interactive.playerColor === 'w' ? 'White' : 'Black'}</Text>
                                 </View>
                                 <TouchableOpacity
@@ -357,7 +361,9 @@ export function ReelCard({
                                     onPress={() => handleStartChallenge(reel.interactive!.playerColor!)}
                                     activeOpacity={0.8}
                                 >
-                                    <Text style={styles.colorBtnEmoji}>⚡</Text>
+                                    <View style={{ marginBottom: 4 }}>
+                                        <Ionicons name="flash" size={28} color="#fff" />
+                                    </View>
                                     <Text style={[styles.whiteBtnText, { color: '#fff' }]}>Accept Challenge</Text>
                                 </TouchableOpacity>
                             </>
@@ -366,11 +372,11 @@ export function ReelCard({
                                 <Text style={styles.challengeChooseText}>Choose your side:</Text>
                                 <View style={styles.colorChoiceRow}>
                                     <TouchableOpacity style={[styles.colorChoiceBtn, styles.whiteBtn]} onPress={() => handleStartChallenge('w')} activeOpacity={0.8}>
-                                        <Text style={styles.colorBtnEmoji}>♔</Text>
+                                        <View style={{ marginBottom: 4, width: 28, height: 28, borderRadius: 14, backgroundColor: '#fff', borderWidth: 2, borderColor: '#ccc' }} />
                                         <Text style={styles.whiteBtnText}>White</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity style={[styles.colorChoiceBtn, styles.blackBtn]} onPress={() => handleStartChallenge('b')} activeOpacity={0.8}>
-                                        <Text style={styles.colorBtnEmoji}>♚</Text>
+                                        <View style={{ marginBottom: 4, width: 28, height: 28, borderRadius: 14, backgroundColor: '#333', borderWidth: 2, borderColor: '#555' }} />
                                         <Text style={styles.blackBtnText}>Black</Text>
                                     </TouchableOpacity>
                                 </View>
@@ -395,7 +401,7 @@ export function ReelCard({
 }
 
 const styles = StyleSheet.create({
-    container: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT, backgroundColor: "#0F0F23" },
+    container: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT, backgroundColor: "#080B14" },
     video: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
     poster: { width: "100%", height: "100%", resizeMode: "cover" },
     loadingContainer: { ...StyleSheet.absoluteFillObject, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.3)" },
@@ -406,33 +412,33 @@ const styles = StyleSheet.create({
     bottomGradientInner: { paddingTop: 100, paddingHorizontal: 16, justifyContent: "flex-end" as const },
     contentContainer: { width: "85%" },
     difficultyBadge: { alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginBottom: 8 },
-    difficultyText: { color: "#FFFFFF", fontSize: 11, fontWeight: "800", letterSpacing: 0.5 },
-    title: { color: "#FFFFFF", fontSize: 18, fontWeight: "700", marginBottom: 6, textShadowColor: "rgba(0,0,0,0.5)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
-    description: { color: "#FFFFFF", fontSize: 14, lineHeight: 20, marginBottom: 8, opacity: 0.9 },
+    difficultyText: { fontFamily: FONTS.extrabold, color: "#FFFFFF", fontSize: 11, letterSpacing: 0.5 },
+    title: { fontFamily: FONTS.bold, color: "#FFFFFF", fontSize: 18, marginBottom: 6, textShadowColor: "rgba(0,0,0,0.5)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
+    description: { fontFamily: FONTS.regular, color: "#FFFFFF", fontSize: 14, lineHeight: 20, marginBottom: 8, opacity: 0.9 },
     tagsContainer: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
-    hashtag: { color: "#00D9FF", fontSize: 14, fontWeight: "600" },
+    hashtag: { fontFamily: FONTS.semibold, color: "#F5A623", fontSize: 14 },
     playerMatchup: { flexDirection: "row", alignItems: "center", marginTop: 4, paddingTop: 8, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.2)" },
     playerInfo: { flexDirection: "row", alignItems: "center", gap: 6 },
     playerDot: { width: 12, height: 12, borderRadius: 6 },
-    playerName: { color: "#FFFFFF", fontSize: 14, fontWeight: "600", maxWidth: 100 },
-    vsText: { color: "#A0A0B0", fontSize: 12, fontWeight: "700", marginHorizontal: 8, fontStyle: "italic" },
-    errorContainer: { justifyContent: "center", alignItems: "center", backgroundColor: "#1A1A2E" },
-    errorText: { color: "#6B7280", fontSize: 14, textAlign: "center" },
+    playerName: { fontFamily: FONTS.semibold, color: "#FFFFFF", fontSize: 14, maxWidth: 100 },
+    vsText: { fontFamily: FONTS.bold, color: "#A0A0B0", fontSize: 12, marginHorizontal: 8, fontStyle: "italic" },
+    errorContainer: { justifyContent: "center", alignItems: "center", backgroundColor: "#111629" },
+    errorText: { fontFamily: FONTS.regular, color: "#6B7280", fontSize: 14, textAlign: "center" },
     challengeOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", zIndex: 100 },
     challengeCard: { backgroundColor: "rgba(30,30,30,0.95)", borderRadius: 20, paddingVertical: 28, paddingHorizontal: 24, alignItems: "center", width: "80%", maxWidth: 320, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" },
-    challengeTitle: { fontSize: 22, fontWeight: "800", color: "#fff", marginBottom: 8 },
-    challengeDesc: { fontSize: 14, color: "#aaa", textAlign: "center", marginBottom: 20, lineHeight: 20 },
+    challengeTitle: { fontFamily: FONTS.extrabold, fontSize: 22, color: "#fff", marginBottom: 8 },
+    challengeDesc: { fontFamily: FONTS.regular, fontSize: 14, color: "#aaa", textAlign: "center", marginBottom: 20, lineHeight: 20 },
     challengeSkip: { paddingVertical: 8 },
-    challengeSkipText: { fontSize: 14, color: "#888", fontWeight: "600" },
-    challengeChooseText: { fontSize: 13, color: "#ccc", fontWeight: "600", marginBottom: 12, textTransform: "uppercase", letterSpacing: 1 },
+    challengeSkipText: { fontFamily: FONTS.semibold, fontSize: 14, color: "#888" },
+    challengeChooseText: { fontFamily: FONTS.semibold, fontSize: 13, color: "#ccc", marginBottom: 12, textTransform: "uppercase", letterSpacing: 1 },
     colorChoiceRow: { flexDirection: "row", gap: 12, marginBottom: 12, width: "100%" },
     colorChoiceBtn: { flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: "center", justifyContent: "center" },
     whiteBtn: { backgroundColor: "#f0f0f0" },
     blackBtn: { backgroundColor: "#333", borderWidth: 1, borderColor: "#555" },
     colorBtnEmoji: { fontSize: 28, marginBottom: 4 },
-    whiteBtnText: { fontSize: 15, fontWeight: "800", color: "#222" },
-    blackBtnText: { fontSize: 15, fontWeight: "800", color: "#f0f0f0" },
+    whiteBtnText: { fontFamily: FONTS.extrabold, fontSize: 15, color: "#222" },
+    blackBtnText: { fontFamily: FONTS.extrabold, fontSize: 15, color: "#f0f0f0" },
     forcedColorBadge: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(255,255,255,0.1)", paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, marginBottom: 16, width: "100%", justifyContent: "center" },
     forcedColorEmoji: { fontSize: 28 },
-    forcedColorText: { fontSize: 16, fontWeight: "700", color: "#fff" },
+    forcedColorText: { fontFamily: FONTS.bold, fontSize: 16, color: "#fff" },
 });

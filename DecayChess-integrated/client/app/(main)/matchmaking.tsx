@@ -288,8 +288,8 @@ export default function MatchMaking() {
   } else if (loading) {
     // Show loading spinner while waiting for match to be established
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: "#0F0F23", justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#00D9FF" />
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#080B14", justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#F5A623" />
         <Text style={{ color: "#A0A0B0", fontSize: 16, marginTop: 12 }}>
           Waiting for match to be established...
         </Text>
@@ -299,7 +299,7 @@ export default function MatchMaking() {
 
   // Show matchmaking UI
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#0F0F23", justifyContent: "center", alignItems: "center", padding: 20 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#080B14", justifyContent: "center", alignItems: "center", padding: 20 }}>
       <Text style={{ color: "#fff", fontSize: 28, fontWeight: "bold", marginBottom: 32 }}>
         Matchmaking...
       </Text>
@@ -348,7 +348,7 @@ export default function MatchMaking() {
       {/* Show timer and spinner if not matched */}
       {!opponent && (
         <View style={{ marginTop: 40, alignItems: "center" }}>
-          <ActivityIndicator size="large" color="#00D9FF" />
+          <ActivityIndicator size="large" color="#F5A623" />
           <Text style={{ color: "#A0A0B0", fontSize: 16, marginTop: 12 }}>
             Finding an opponent... ({timer}s)
           </Text>
@@ -358,7 +358,7 @@ export default function MatchMaking() {
       {/* Show match found message */}
       {opponent && !isMatchFound && (
         <View style={{ marginTop: 40, alignItems: "center" }}>
-          <Text style={{ color: "#00D9FF", fontSize: 20, fontWeight: "bold" }}>
+          <Text style={{ color: "#F5A623", fontSize: 20, fontWeight: "bold" }}>
             Match Found!
           </Text>
           <Text style={{ color: "#A0A0B0", fontSize: 14, marginTop: 8 }}>

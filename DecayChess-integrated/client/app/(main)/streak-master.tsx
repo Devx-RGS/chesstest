@@ -260,7 +260,7 @@ export default function StreakMasterScreen() {
   } else if (loading) {
     return (
       <View style={streakMasterScreenStyles.container}>
-        <ActivityIndicator size="large" color="#00D9FF" />
+        <ActivityIndicator size="large" color="#F5A623" />
         <Text style={streakMasterScreenStyles.infoText}>Waiting for match to be established...</Text>
       </View>
     )
@@ -305,7 +305,7 @@ export default function StreakMasterScreen() {
         {/* Queue Status */}
         {isTournamentQueueing && (
           <View style={streakMasterScreenStyles.queueStatusContainer}>
-            <ActivityIndicator size="large" color="#00D9FF" />
+            <ActivityIndicator size="large" color="#F5A623" />
             <Text style={streakMasterScreenStyles.queueStatusText}>Searching for match...</Text>
             <Text style={streakMasterScreenStyles.queueTimerText}>Time in queue: {timer}s</Text>
           </View>
@@ -337,7 +337,7 @@ export default function StreakMasterScreen() {
               </View>
               
               <View style={streakMasterScreenStyles.startingGameSection}>
-                <ActivityIndicator size="small" color="#00D9FF" />
+                <ActivityIndicator size="small" color="#F5A623" />
                 <Text style={streakMasterScreenStyles.startingGameText}>Starting game...</Text>
               </View>
             </View>
@@ -404,7 +404,7 @@ export default function StreakMasterScreen() {
           
           {loading ? (
             <View style={streakMasterScreenStyles.loadingContainer}>
-              <ActivityIndicator size="large" color="#00D9FF" />
+              <ActivityIndicator size="large" color="#F5A623" />
               <Text style={streakMasterScreenStyles.loadingText}>Loading leaderboard...</Text>
             </View>
           ) : leaderboardData ? (

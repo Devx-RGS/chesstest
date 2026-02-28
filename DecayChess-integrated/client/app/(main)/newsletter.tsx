@@ -20,9 +20,9 @@ export default function NewsletterPage() {
       hideTopNav={true}
       activeBottomTab="home"
     >
-      <ScrollView style={{ flex: 1, backgroundColor: '#0F0F23' }} contentContainerStyle={{ padding: 20 }}>
+      <ScrollView style={{ flex: 1, backgroundColor: '#080B14' }} contentContainerStyle={{ padding: 20 }}>
         <Text style={{ color: '#fff', fontSize: 22, fontWeight: '700', marginBottom: 12 }}>Newsletter</Text>
-        <View style={{ backgroundColor: '#2C2F33', borderRadius: 12, padding: 16 }}>
+        <View style={{ backgroundColor: '#171D33', borderRadius: 12, padding: 16 }}>
           <Text style={{ color: '#A0A0B0' }}>
             Coming soon. Subscribe to get updates on new variants, tournaments, and features.
           </Text>
