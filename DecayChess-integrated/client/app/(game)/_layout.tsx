@@ -18,7 +18,7 @@ export default function GameLayout() {
           alignItems: "center",
         }}
       >
-        <StatusBar style="light" backgroundColor="#080B14" translucent={false} />
+        <StatusBar style="light" />
         <ActivityIndicator size="large" color="#F5A623" />
         <Text style={{ color: "#fff", marginTop: 16, fontSize: 16 }}>
           Checking login status...

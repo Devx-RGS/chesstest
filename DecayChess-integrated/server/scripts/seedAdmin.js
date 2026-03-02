@@ -1,5 +1,6 @@
-// Seed script: creates an admin user in the database
+// ========= IMPORTANT ==========
 // Usage: node scripts/seedAdmin.js
+// ============================
 
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";

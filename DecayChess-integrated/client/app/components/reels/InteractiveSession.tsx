@@ -6,7 +6,7 @@
  * Uses Ionicons instead of lucide-react-native.
  */
 
-import React, { useEffect, useCallback, useRef } from 'react';
+import React, { useEffect, useCallback, useRef, useState } from 'react';
 import {
     View,
     Text,
@@ -37,6 +37,9 @@ interface InteractiveSessionProps {
     onSessionEnd: () => void;
     title?: string;
     description?: string;
+    whitePlayer?: string;
+    blackPlayer?: string;
+    timeLimit?: number | null;
 }
 
 export default function InteractiveSession({
@@ -44,6 +47,9 @@ export default function InteractiveSession({
     onSessionEnd,
     title,
     description,
+    whitePlayer,
+    blackPlayer,
+    timeLimit,
 }: InteractiveSessionProps) {
     const sessionStatus = useGameStore((s) => s.sessionStatus);
     const evaluation = useGameStore((s) => s.evaluation);
@@ -60,6 +66,44 @@ export default function InteractiveSession({
     const overlayScale = useRef(new Animated.Value(0.8)).current;
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const moveListRef = useRef<ScrollView>(null);
+    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+
+    const isTerminal = sessionStatus === 'checkmate' || sessionStatus === 'stalemate'
+        || sessionStatus === 'draw' || sessionStatus === 'collapsed';
+
+    // Initialize / reset timer when session starts or restarts
+    useEffect(() => {
+        if (visible && timeLimit && timeLimit > 0 && sessionStatus !== 'ended') {
+            setTimeRemaining(timeLimit);
+        }
+    }, [visible, timeLimit, sessionStatus]);
+
+    // Countdown tick
+    useEffect(() => {
+        if (timeRemaining === null || timeRemaining <= 0 || isTerminal || sessionStatus === 'ended') {
+            if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+            return;
+        }
+        timerRef.current = setInterval(() => {
+            setTimeRemaining((prev) => {
+                if (prev === null || prev <= 1) {
+                    if (timerRef.current) clearInterval(timerRef.current);
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+        return () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
+    }, [timeRemaining, isTerminal, sessionStatus]);
+
+    // Auto-end session when timer hits 0
+    useEffect(() => {
+        if (timeRemaining === 0 && !isTerminal) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            endSession();
+        }
+    }, [timeRemaining, isTerminal, endSession]);
 
     useEffect(() => {
         Animated.timing(backdropOpacity, {
@@ -75,8 +119,7 @@ export default function InteractiveSession({
         }).start();
     }, [visible]);
 
-    const isTerminal = sessionStatus === 'checkmate' || sessionStatus === 'stalemate'
-        || sessionStatus === 'draw' || sessionStatus === 'collapsed';
+
 
     useEffect(() => {
         if (isTerminal) {
@@ -198,9 +241,30 @@ export default function InteractiveSession({
                         <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
                     </View>
                     <View style={styles.playerBadge}>
-                        <Text style={styles.playerBadgeText}>{playerColor === 'w' ? '♔ White' : '♚ Black'}</Text>
+                        <Text style={styles.playerBadgeText}>{playerColor === 'w' ? `♔ ${whitePlayer || 'White'}` : `♚ ${blackPlayer || 'Black'}`}</Text>
                     </View>
                 </Animated.View>
+
+                {/* Timer */}
+                {timeRemaining !== null && timeLimit && timeLimit > 0 && (
+                    <View style={styles.timerContainer}>
+                        <View style={styles.timerRow}>
+                            <Ionicons name="time-outline" size={16} color={timeRemaining <= 10 ? '#FF5252' : '#F5A623'} />
+                            <Text style={[styles.timerText, timeRemaining <= 10 && styles.timerTextDanger]}>
+                                {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}
+                            </Text>
+                        </View>
+                        <View style={styles.timerBarBg}>
+                            <View style={[
+                                styles.timerBarFill,
+                                {
+                                    width: `${Math.max(0, (timeRemaining / timeLimit) * 100)}%`,
+                                    backgroundColor: timeRemaining <= 10 ? '#FF5252' : timeRemaining <= 30 ? '#FF9800' : '#4CAF50',
+                                },
+                            ]} />
+                        </View>
+                    </View>
+                )}
 
                 {/* Board Area */}
                 <View style={styles.boardArea}>
@@ -331,4 +395,10 @@ const styles = StyleSheet.create({
     retryBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
     backBtn: { backgroundColor: 'rgba(255, 255, 255, 0.06)' },
     backBtnText: { fontSize: 14, fontWeight: '600', color: '#999' },
+    timerContainer: { marginBottom: 8, paddingHorizontal: 4 },
+    timerRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+    timerText: { fontSize: 16, fontWeight: '800', color: '#F5A623', fontFamily: 'monospace', letterSpacing: 1 },
+    timerTextDanger: { color: '#FF5252' },
+    timerBarBg: { height: 4, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: 2, overflow: 'hidden' },
+    timerBarFill: { height: '100%', borderRadius: 2 },
 });

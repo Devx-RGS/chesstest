@@ -29,6 +29,7 @@ export interface InteractiveData {
     challengePrompt?: string | null;
     solutionMoves: string[];
     difficultyRating: number | null;
+    timeLimit: number | null;
 }
 
 export interface Reel {

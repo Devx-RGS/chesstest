@@ -65,6 +65,8 @@ export const uploadVideo = async (req, res) => {
                 description: videoData?.content?.description || "",
                 tags: videoData?.content?.tags || [],
                 difficulty: videoData?.content?.difficulty || "beginner",
+                whitePlayer: whitePlayer || null,
+                blackPlayer: blackPlayer || null,
             },
             gameId: gameId,
             grandmasters: grandmastersList,
@@ -75,6 +77,7 @@ export const uploadVideo = async (req, res) => {
                 playerColor: videoData?.interactive?.playerColor || null,
                 solutionMoves: videoData?.interactive?.solutionMoves || [],
                 difficultyRating: videoData?.interactive?.difficultyRating || null,
+                timeLimit: videoData?.interactive?.timeLimit || null,
             },
             status: videoData?.status || "draft",
         });

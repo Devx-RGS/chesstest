@@ -45,6 +45,7 @@ export interface PostReelData {
         challengePrompt?: string;
         solutionMoves?: string[];
         difficultyRating?: number;
+        timeLimit?: number;
     };
 }
 
@@ -131,6 +132,7 @@ export function usePostReel() {
                         challengePrompt: reelData.interactive.challengePrompt || null,
                         solutionMoves: reelData.interactive.solutionMoves || [],
                         difficultyRating: reelData.interactive.difficultyRating || null,
+                        timeLimit: reelData.interactive.timeLimit || null,
                     } : undefined,
                     status: "published",
                     whitePlayer: reelData.whitePlayer || null,

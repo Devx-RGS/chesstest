@@ -189,7 +189,7 @@ export default function ReelsScreen() {
 
     return (
         <View style={styles.container}>
-            <StatusBar style="light" backgroundColor="transparent" translucent />
+            <StatusBar style="light" />
 
             {/* Tab Bar */}
             <View style={styles.tabBar}>

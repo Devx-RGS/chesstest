@@ -15,6 +15,8 @@ const reelSchema = new mongoose.Schema({
       type: String,
       enum: ["beginner", "intermediate", "advanced"],
     },
+    whitePlayer: { type: String, default: null },
+    blackPlayer: { type: String, default: null },
   },
 
   grandmasters: [{ type: String }],
@@ -31,6 +33,7 @@ const reelSchema = new mongoose.Schema({
     challengePrompt: { type: String, default: null },
     solutionMoves: { type: [String], default: [] },
     difficultyRating: { type: Number, min: 1, max: 5, default: null },
+    timeLimit: { type: Number, default: null },
   },
 
   engagement: {

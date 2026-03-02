@@ -50,6 +50,7 @@ function UploadContent() {
     const [challengePrompt, setChallengePrompt] = useState("");
     const [solutionMoves, setSolutionMoves] = useState("");
     const [challengeRating, setChallengeRating] = useState(3);
+    const [timeLimit, setTimeLimit] = useState("");
     const [showInteractive, setShowInteractive] = useState(false);
 
     const postReel = usePostReel();
@@ -135,6 +136,7 @@ function UploadContent() {
                     challengePrompt: challengePrompt.trim() || undefined,
                     solutionMoves: solutionMoves.split(",").map((m) => m.trim()).filter(Boolean),
                     difficultyRating: challengeRating,
+                    timeLimit: timeLimit ? parseFloat(timeLimit) : undefined,
                 };
             }
 
@@ -352,10 +354,10 @@ function UploadContent() {
                                     <Text style={styles.subLabel}>Player Color</Text>
                                     <View style={styles.pillRow}>
                                         <TouchableOpacity style={[styles.pill, playerColor === "w" && styles.pillActive]} onPress={() => setPlayerColor("w")}>
-                                            <Text style={[styles.pillText, playerColor === "w" && styles.pillTextActive]}>White</Text>
+                                            <Text style={[styles.pillText, playerColor === "w" && styles.pillTextActive]}>{whitePlayer.trim() || 'White'}</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity style={[styles.pill, playerColor === "b" && styles.pillActive]} onPress={() => setPlayerColor("b")}>
-                                            <Text style={[styles.pillText, playerColor === "b" && styles.pillTextActive]}>Black</Text>
+                                            <Text style={[styles.pillText, playerColor === "b" && styles.pillTextActive]}>{blackPlayer.trim() || 'Black'}</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity style={[styles.pill, playerColor === null && styles.pillActive]} onPress={() => setPlayerColor(null)}>
                                             <Text style={[styles.pillText, playerColor === null && styles.pillTextActive]}>User Picks</Text>
@@ -383,6 +385,10 @@ function UploadContent() {
                                             </TouchableOpacity>
                                         ))}
                                     </View>
+                                </View>
+                                <View style={styles.field}>
+                                    <Text style={styles.subLabel}>Time Limit (seconds)</Text>
+                                    <TextInput style={styles.input} value={timeLimit} onChangeText={setTimeLimit} placeholder="e.g. 60" placeholderTextColor="#6B7280" keyboardType="decimal-pad" />
                                 </View>
                             </View>
                         )}

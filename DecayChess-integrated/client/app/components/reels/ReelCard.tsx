@@ -168,7 +168,7 @@ export function ReelCard({
         useCallback(() => {
             const resumeVideo = async () => {
                 if (isVisible && hasValidUrl && !hasVideoError) {
-                    try { await videoRef.current?.playAsync(); setIsPlaying(true); } catch (e) { console.warn("Video resume error:", e); }
+                    try { await videoRef.current?.playAsync(); setIsPlaying(true); } catch (e) { /* audio focus re-acquire expected on Android */ }
                 }
             };
             resumeVideo();
@@ -354,7 +354,7 @@ export function ReelCard({
                             <>
                                 <View style={styles.forcedColorBadge}>
                                     <Ionicons name="person" size={28} color={reel.interactive.playerColor === 'w' ? "#f0f0f0" : "#333"} />
-                                    <Text style={styles.forcedColorText}>Play as {reel.interactive.playerColor === 'w' ? 'White' : 'Black'}</Text>
+                                    <Text style={styles.forcedColorText}>Play as {reel.interactive.playerColor === 'w' ? (reel.content.whitePlayer || 'White') : (reel.content.blackPlayer || 'Black')}</Text>
                                 </View>
                                 <TouchableOpacity
                                     style={[styles.colorChoiceBtn, { backgroundColor: '#4CAF50', width: '100%', marginBottom: 12 }]}
@@ -373,11 +373,11 @@ export function ReelCard({
                                 <View style={styles.colorChoiceRow}>
                                     <TouchableOpacity style={[styles.colorChoiceBtn, styles.whiteBtn]} onPress={() => handleStartChallenge('w')} activeOpacity={0.8}>
                                         <View style={{ marginBottom: 4, width: 28, height: 28, borderRadius: 14, backgroundColor: '#fff', borderWidth: 2, borderColor: '#ccc' }} />
-                                        <Text style={styles.whiteBtnText}>White</Text>
+                                        <Text style={styles.whiteBtnText}>{reel.content.whitePlayer || 'White'}</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity style={[styles.colorChoiceBtn, styles.blackBtn]} onPress={() => handleStartChallenge('b')} activeOpacity={0.8}>
                                         <View style={{ marginBottom: 4, width: 28, height: 28, borderRadius: 14, backgroundColor: '#333', borderWidth: 2, borderColor: '#555' }} />
-                                        <Text style={styles.blackBtnText}>Black</Text>
+                                        <Text style={styles.blackBtnText}>{reel.content.blackPlayer || 'Black'}</Text>
                                     </TouchableOpacity>
                                 </View>
                             </>
@@ -395,6 +395,9 @@ export function ReelCard({
                 onSessionEnd={handleSessionEnd}
                 title={reel.content.title}
                 description={reel.content.description}
+                whitePlayer={reel.content.whitePlayer}
+                blackPlayer={reel.content.blackPlayer}
+                timeLimit={reel.interactive?.timeLimit ?? null}
             />
         </View>
     );

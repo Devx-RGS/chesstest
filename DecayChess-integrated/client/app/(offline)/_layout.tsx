@@ -5,7 +5,7 @@ import { StatusBar } from "expo-status-bar";
 export default function OfflineLayout() {
   return (
     <>
-      <StatusBar style="light" backgroundColor="#080B14" translucent={false} />
+      <StatusBar style="light" />
       <Stack>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="classic" options={{ headerShown: false }} />
