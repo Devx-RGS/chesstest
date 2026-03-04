@@ -180,6 +180,53 @@ export function useDeleteReel() {
     });
 }
 
+// Hook: Update reel
+export function useUpdateReel() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ reelId, reelData }: { reelId: string; reelData: Partial<PostReelData> }) => {
+            const payload: any = {
+                updatedData: {} as any,
+            };
+
+            if (reelData.videoUrl) payload.updatedData.video = { url: reelData.videoUrl, thumbnail: "", durationSec: 0 };
+            payload.updatedData.content = {
+                title: reelData.title,
+                description: reelData.description,
+                tags: reelData.tags || [],
+                difficulty: reelData.difficulty || "beginner",
+                whitePlayer: reelData.whitePlayer || null,
+                blackPlayer: reelData.blackPlayer || null,
+            };
+
+            if (reelData.interactive) {
+                payload.updatedData.interactive = {
+                    chessFen: reelData.interactive.chessFen || null,
+                    triggerTimestamp: reelData.interactive.triggerTimestamp || null,
+                    playerColor: reelData.interactive.playerColor ?? null,
+                    challengePrompt: reelData.interactive.challengePrompt || null,
+                    solutionMoves: reelData.interactive.solutionMoves || [],
+                    difficultyRating: reelData.interactive.difficultyRating || null,
+                    timeLimit: reelData.interactive.timeLimit || null,
+                };
+            }
+
+            if (reelData.folder) payload.updatedData.folder = reelData.folder;
+            if (reelData.grandmaster) payload.updatedData.grandmaster = reelData.grandmaster;
+
+            const response = await apiClient.put<AdminVideoResponse>(`/admin/video/${reelId}`, payload);
+            return response.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["admin-reels"] });
+            queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
+            queryClient.invalidateQueries({ queryKey: ["reels"] });
+            queryClient.invalidateQueries({ queryKey: ["reels-random"] });
+        },
+    });
+}
+
 // ============== FOLDER / GRANDMASTER APIs ==============
 
 interface GrandmasterData {

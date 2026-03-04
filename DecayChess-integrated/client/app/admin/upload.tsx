@@ -10,7 +10,6 @@ import {
     ActivityIndicator,
     KeyboardAvoidingView,
     Platform,
-    Image,
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -31,15 +30,14 @@ function UploadContent() {
     // Form state
     const [videoUrl, setVideoUrl] = useState("");
     const [videoUri, setVideoUri] = useState<string | null>(null);
-    const [thumbnailUrl, setThumbnailUrl] = useState("");
-    const [thumbnailUri, setThumbnailUri] = useState<string | null>(null);
+
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [tags, setTags] = useState("");
     const [difficulty, setDifficulty] = useState<"beginner" | "intermediate" | "advanced">("beginner");
     const [folder, setFolder] = useState<"random" | "grandmaster">("random");
     const [grandmaster, setGrandmaster] = useState("");
-    const [fenString, setFenString] = useState("");
+
     const [whitePlayer, setWhitePlayer] = useState("");
     const [blackPlayer, setBlackPlayer] = useState("");
 
@@ -69,17 +67,7 @@ function UploadContent() {
         }
     };
 
-    const pickThumbnail = async () => {
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            quality: 1,
-        });
-        if (!result.canceled) {
-            setThumbnailUri(result.assets[0].uri);
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }
-    };
+
 
     const handleSubmit = async () => {
         if (!title.trim()) { Alert.alert("Missing", "Title is required."); return; }
@@ -93,25 +81,15 @@ function UploadContent() {
 
         try {
             let finalVideoUrl = videoUrl.trim();
-            let finalThumbnailUrl = thumbnailUrl.trim();
 
             // Handle local file uploads
-            if (uploadMode === "local" && (videoUri || thumbnailUri)) {
+            if (uploadMode === "local" && videoUri) {
                 const formData = new FormData();
-                if (videoUri) {
-                    formData.append("video", { uri: videoUri, name: "upload.mp4", type: "video/mp4" } as any);
-                }
-                if (thumbnailUri) {
-                    const filename = thumbnailUri.split('/').pop() || "thumbnail.jpg";
-                    const match = /\.(\w+)$/.exec(filename);
-                    const type = match ? `image/${match[1]}` : "image";
-                    formData.append("thumbnail", { uri: thumbnailUri, name: filename, type } as any);
-                }
+                formData.append("video", { uri: videoUri, name: "upload.mp4", type: "video/mp4" } as any);
                 const uploadRes = await axiosClient.post("/upload", formData, {
                     headers: { "Content-Type": "multipart/form-data" },
                 });
                 if (uploadRes.data.videoUrl) finalVideoUrl = uploadRes.data.videoUrl;
-                if (uploadRes.data.thumbnailUrl) finalThumbnailUrl = uploadRes.data.thumbnailUrl;
             }
 
             const data: PostReelData = {
@@ -122,8 +100,8 @@ function UploadContent() {
                 difficulty,
                 folder,
                 grandmaster: folder === "grandmaster" ? grandmaster : null,
-                fenString: fenString.trim() || undefined,
-                thumbnailUrl: finalThumbnailUrl || undefined,
+
+
                 whitePlayer: whitePlayer.trim() || undefined,
                 blackPlayer: blackPlayer.trim() || undefined,
             };
@@ -215,30 +193,7 @@ function UploadContent() {
                         )}
                     </View>
 
-                    {/* Thumbnail */}
-                    <View style={styles.glassCard}>
-                        <Text style={styles.sectionTitle}>Thumbnail Snapshot (optional)</Text>
-                        {uploadMode === "local" ? (
-                            <>
-                                <TouchableOpacity style={styles.pickBtn} onPress={pickThumbnail}>
-                                    <Ionicons name="image-outline" size={24} color="#F5A623" />
-                                    <Text style={styles.pickBtnText}>{thumbnailUri ? "Change Thumbnail" : "Select Thumbnail"}</Text>
-                                </TouchableOpacity>
-                                {thumbnailUri && (
-                                    <Image source={{ uri: thumbnailUri }} style={styles.thumbPreview} resizeMode="cover" />
-                                )}
-                            </>
-                        ) : (
-                            <TextInput
-                                style={styles.input}
-                                value={thumbnailUrl}
-                                onChangeText={setThumbnailUrl}
-                                placeholder="https://example.com/thumbnail.jpg"
-                                placeholderTextColor="#6B7280"
-                                autoCapitalize="none"
-                            />
-                        )}
-                    </View>
+
 
                     {/* Content Details */}
                     <View style={styles.glassCard}>
@@ -322,12 +277,6 @@ function UploadContent() {
                                 )}
                             </View>
                         )}
-                    </View>
-
-                    {/* FEN String */}
-                    <View style={styles.glassCard}>
-                        <Text style={styles.sectionTitle}>FEN Position String (optional)</Text>
-                        <TextInput style={styles.input} value={fenString} onChangeText={setFenString} placeholder="rnbqkbnr/pppppppp/..." placeholderTextColor="#6B7280" autoCapitalize="none" />
                     </View>
 
                     {/* Interactive Toggle */}

@@ -276,12 +276,20 @@ function DashboardContent() {
                                     <Text style={styles.diffLabel}>{reel.content.difficulty}</Text>
                                 )}
                             </View>
-                            <TouchableOpacity
-                                onPress={() => handleDelete(reel)}
-                                style={styles.deleteBtn}
-                            >
-                                <Ionicons name="trash-outline" size={20} color="#EF4444" />
-                            </TouchableOpacity>
+                            <View style={{ flexDirection: "row", gap: 4 }}>
+                                <TouchableOpacity
+                                    onPress={() => router.push(`/admin/edit?reelId=${reel._id}`)}
+                                    style={styles.editBtn}
+                                >
+                                    <Ionicons name="pencil-outline" size={18} color="#F5A623" />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => handleDelete(reel)}
+                                    style={styles.deleteBtn}
+                                >
+                                    <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                                </TouchableOpacity>
+                            </View>
                         </View>
                     ))
                 )}
@@ -433,6 +441,9 @@ const styles = StyleSheet.create({
         fontSize: 11,
         color: "#A0A0B0",
         textTransform: "capitalize",
+    },
+    editBtn: {
+        padding: 10,
     },
     deleteBtn: {
         padding: 10,

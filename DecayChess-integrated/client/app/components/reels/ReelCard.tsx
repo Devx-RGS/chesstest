@@ -20,6 +20,7 @@ import InteractiveSession from "./InteractiveSession";
 import { useGameStore } from "../../lib/stores/gameStore";
 import { useCoinStore } from "../../lib/stores/coinStore";
 import { useCheckInteractiveAccess, useSpendCoins } from "../../lib/services/coinApi";
+import { useReelStore } from "../../lib/stores/reelStore";
 
 // Difficulty colors
 const getDifficultyColor = (difficulty: string) => {
@@ -65,11 +66,10 @@ export function ReelCard({
     onView,
     onImmersiveChange,
 }: ReelCardProps) {
-    const bottomPadding = 140;
+    const bottomPadding = 60;
 
     const videoRef = useRef<Video>(null);
     const [isPlaying, setIsPlaying] = useState(false);
-    const [isMuted, setIsMuted] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [showControls, setShowControls] = useState(false);
     const [hasRecordedView, setHasRecordedView] = useState(false);
@@ -80,6 +80,7 @@ export function ReelCard({
     const [showCoinGate, setShowCoinGate] = useState(false);
     const [showPlayerSelect, setShowPlayerSelect] = useState(false);
     const [coinGateInfo, setCoinGateInfo] = useState<{ cost: number; balance: number } | null>(null);
+    const [triggerFired, setTriggerFired] = useState(false);
     const viewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const immersiveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const uiOpacity = useRef(new Animated.Value(1)).current;
@@ -98,12 +99,25 @@ export function ReelCard({
 
     // Coin system
     const coinBalance = useCoinStore((s) => s.balance);
+
+    // Read engagement from Zustand store for live like/save counts
+    const storeEngagement = useReelStore((s) => {
+        const storeReel = s.reels.find((r) => r._id === reel._id);
+        return storeReel?.engagement;
+    });
     const optimisticSpend = useCoinStore((s) => s.optimisticSpend);
     const rollbackSpend = useCoinStore((s) => s.rollbackSpend);
     const updateBalance = useCoinStore((s) => s.updateBalance);
     const setInteractivePlays = useCoinStore((s) => s.setInteractivePlays);
     const checkAccess = useCheckInteractiveAccess();
     const spendCoins = useSpendCoins();
+
+    // Debug: log interactive data to verify challengePrompt is received from server
+    useEffect(() => {
+        if (reel.interactive) {
+            console.log('[ReelCard] Interactive data:', JSON.stringify(reel.interactive, null, 2));
+        }
+    }, [reel._id]);
 
     // Reset states when reel changes
     useEffect(() => {
@@ -117,6 +131,7 @@ export function ReelCard({
         setShowCoinGate(false);
         setShowPlayerSelect(false);
         setCoinGateInfo(null);
+        setTriggerFired(false);
         uiOpacity.setValue(1);
         swipeHintOpacity.setValue(0);
     }, [reel._id]);
@@ -154,15 +169,13 @@ export function ReelCard({
         setShowInteractiveSession(true);
     }, [reel.interactive, startSession]);
 
-    // Show player selection, or skip if color is forced
+    // Always show player selection overlay so the challenge prompt is visible
     const promptPlayerSelection = useCallback(() => {
-        if (reel.interactive?.playerColor) {
-            // Forced color — skip selection
-            launchInteractiveSession(reel.interactive.playerColor);
-        } else {
-            setShowPlayerSelect(true);
-        }
-    }, [reel.interactive, launchInteractiveSession]);
+        // Pause video when showing the interactive prompt
+        videoRef.current?.pauseAsync().catch(() => { });
+        setIsPlaying(false);
+        setShowPlayerSelect(true);
+    }, []);
 
     // Swipe handler: detect horizontal swipe to open interactive session
     const panResponder = useMemo(() => PanResponder.create({
@@ -252,7 +265,7 @@ export function ReelCard({
         const handleVisibility = async () => {
             if (!hasValidUrl || hasVideoError) return;
             try {
-                if (isVisible) {
+                if (isVisible && !showInteractiveSession) {
                     try {
                         await Audio.setAudioModeAsync({ playsInSilentModeIOS: true, staysActiveInBackground: false, shouldDuckAndroid: true });
                     } catch (e) { console.warn("Audio mode config failed:", e); }
@@ -266,7 +279,6 @@ export function ReelCard({
                 if (error?.message?.includes("AudioFocus")) {
                     try {
                         await videoRef.current?.setIsMutedAsync(true);
-                        setIsMuted(true);
                         await videoRef.current?.playAsync();
                         setIsPlaying(true);
                     } catch (e) { console.warn("Failed to play muted:", e); }
@@ -276,13 +288,13 @@ export function ReelCard({
             }
         };
         handleVisibility();
-    }, [isVisible, hasValidUrl, hasVideoError]);
+    }, [isVisible, hasValidUrl, hasVideoError, showInteractiveSession]);
 
     // Stop video on tab unfocus
     useFocusEffect(
         useCallback(() => {
             const resumeVideo = async () => {
-                if (isVisible && hasValidUrl && !hasVideoError) {
+                if (isVisible && hasValidUrl && !hasVideoError && !showInteractiveSession) {
                     try { await videoRef.current?.playAsync(); setIsPlaying(true); } catch (e) { /* audio focus re-acquire expected on Android */ }
                 }
             };
@@ -293,14 +305,29 @@ export function ReelCard({
                 };
                 stopVideo();
             };
-        }, [isVisible, hasValidUrl, hasVideoError])
+        }, [isVisible, hasValidUrl, hasVideoError, showInteractiveSession])
     );
 
     const handlePlaybackStatusUpdate = (status: AVPlaybackStatus) => {
         if (status.isLoaded) {
             setIsLoading(false);
-            setIsPlaying(status.isPlaying);
-            if (status.didJustFinish) videoRef.current?.replayAsync();
+            // Don't auto-replay if manually paused
+            if (status.didJustFinish && !showInteractiveSession && isPlaying) videoRef.current?.replayAsync();
+
+            // Auto-trigger interactive challenge at configured timestamp
+            if (
+                hasInteractiveChallenge &&
+                reel.interactive?.triggerTimestamp &&
+                !triggerFired &&
+                !showInteractiveSession &&
+                status.positionMillis != null
+            ) {
+                const positionSec = status.positionMillis / 1000;
+                if (positionSec >= reel.interactive.triggerTimestamp) {
+                    setTriggerFired(true);
+                    promptPlayerSelection();
+                }
+            }
         }
     };
 
@@ -310,10 +337,7 @@ export function ReelCard({
         setIsPlaying(!isPlaying);
     };
 
-    const toggleMute = async () => {
-        await videoRef.current?.setIsMutedAsync(!isMuted);
-        setIsMuted(!isMuted);
-    };
+
 
 
     const handleSessionEnd = useCallback(async () => {
@@ -321,25 +345,54 @@ export function ReelCard({
         try { await videoRef.current?.playAsync(); setIsPlaying(true); } catch (e) { console.warn('Failed to resume video after challenge:', e); }
     }, []);
 
+    const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Tap on video area => just show/hide the play/pause button
     const handleVideoPress = () => {
         if (isImmersive) {
             setIsImmersive(false);
+            onImmersiveChange?.(false);
             Animated.timing(uiOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
             if (immersiveTimerRef.current) clearTimeout(immersiveTimerRef.current);
             immersiveTimerRef.current = setTimeout(() => {
                 setIsImmersive(true);
+                onImmersiveChange?.(true);
                 Animated.timing(uiOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start();
             }, 5000);
-        } else {
+        }
+        // Show button
+        setShowControls(true);
+        if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
+        // Auto-hide after 3s only if playing
+        if (isPlaying) {
+            controlsTimerRef.current = setTimeout(() => setShowControls(false), 3000);
+        }
+    };
+
+    // Play/pause button => actually toggle playback
+    const handlePlayPauseButton = async () => {
+        if (isPlaying) {
+            try { await videoRef.current?.setStatusAsync({ shouldPlay: false }); } catch (e) { /* ignore */ }
+            setIsPlaying(false);
             setShowControls(true);
-            setTimeout(() => setShowControls(false), 3000);
+            if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
+        } else {
+            try { await videoRef.current?.setStatusAsync({ shouldPlay: true }); } catch (e) { /* ignore */ }
+            setIsPlaying(true);
+            setShowControls(true);
+            if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
+            controlsTimerRef.current = setTimeout(() => setShowControls(false), 3000);
         }
     };
 
     return (
         <View style={styles.container} {...panResponder.panHandlers}>
             {/* Video Player */}
-            <TouchableOpacity activeOpacity={1} onPress={handleVideoPress} style={StyleSheet.absoluteFill}>
+            <TouchableOpacity
+                activeOpacity={1}
+                onPress={handleVideoPress}
+                style={StyleSheet.absoluteFill}
+            >
                 {hasValidUrl && !hasVideoError ? (
                     <Video
                         key={reel._id}
@@ -351,13 +404,14 @@ export function ReelCard({
                         style={styles.video}
                         resizeMode={ResizeMode.COVER}
                         isLooping
-                        isMuted={isMuted}
-                        shouldPlay={isVisible}
+                        isMuted={false}
+                        shouldPlay={isVisible && isPlaying}
                         onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
                         onError={() => { setHasVideoError(true); setIsLoading(false); }}
                     />
                 ) : (
-                    <View style={[styles.video, styles.errorContainer]}>
+                    <View style={[styles.container, styles.errorContainer]}>
+                        <Ionicons name="videocam-off-outline" size={48} color="#6B7280" />
                         <Text style={styles.errorText}>{hasVideoError ? "Video failed to load" : "Video unavailable"}</Text>
                     </View>
                 )}
@@ -370,21 +424,20 @@ export function ReelCard({
                 </View>
             )}
 
-            {/* Play/Pause */}
+            {/* Play/Pause Button — only this controls playback */}
             {showControls && (
-                <TouchableOpacity style={styles.playButton} onPress={togglePlayPause}>
+                <TouchableOpacity
+                    style={styles.pauseIndicator}
+                    activeOpacity={0.7}
+                    onPress={handlePlayPauseButton}
+                >
                     <View style={styles.playIconContainer}>
                         <Ionicons name={isPlaying ? "pause" : "play"} size={48} color="#FFFFFF" />
                     </View>
                 </TouchableOpacity>
             )}
 
-            {/* Mute Button */}
-            <Animated.View style={{ opacity: uiOpacity, position: 'absolute', top: 120, right: 16 }}>
-                <TouchableOpacity style={styles.muteButtonInner} onPress={toggleMute}>
-                    <Ionicons name={isMuted ? "volume-mute" : "volume-high"} size={20} color="#FFFFFF" />
-                </TouchableOpacity>
-            </Animated.View>
+
 
             {/* Top Gradient */}
             <Animated.View style={{ opacity: uiOpacity, position: 'absolute', top: 0, left: 0, right: 0 }} pointerEvents="none">
@@ -392,13 +445,13 @@ export function ReelCard({
             </Animated.View>
 
             {/* Bottom Gradient & Content */}
-            <Animated.View style={{ opacity: uiOpacity, position: 'absolute', bottom: 0, left: 0, right: 0 }} pointerEvents="box-none">
+            <Animated.View style={{ opacity: uiOpacity, position: 'absolute', bottom: 0, left: 0, right: 0 }} pointerEvents={isImmersive ? "none" : "box-none"}>
                 <LinearGradient
                     colors={["transparent", "rgba(0,0,0,0.4)", "rgba(0,0,0,0.9)"]}
                     style={[styles.bottomGradientInner, { paddingBottom: bottomPadding }]}
                     pointerEvents="box-none"
                 >
-                    <View style={styles.contentContainer}>
+                    <View style={styles.contentContainer} pointerEvents="none">
                         {/* Difficulty Badge */}
                         <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(reel.content.difficulty) + "CC" }]}>
                             <Text style={styles.difficultyText}>{difficultyLabels[reel.content.difficulty] || reel.content.difficulty.toUpperCase()}</Text>
@@ -414,12 +467,12 @@ export function ReelCard({
                             <View style={styles.playerMatchup}>
                                 <View style={styles.playerInfo}>
                                     <View style={[styles.playerDot, { backgroundColor: '#fff' }]} />
-                                    <Text style={styles.playerName} numberOfLines={1}>{reel.content.whitePlayer || "White"}</Text>
+                                    <Text style={styles.playerName}>{reel.content.whitePlayer || "White"}</Text>
                                 </View>
                                 <Text style={styles.vsText}>vs</Text>
                                 <View style={styles.playerInfo}>
                                     <View style={[styles.playerDot, { backgroundColor: '#000', borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' }]} />
-                                    <Text style={styles.playerName} numberOfLines={1}>{reel.content.blackPlayer || "Black"}</Text>
+                                    <Text style={styles.playerName}>{reel.content.blackPlayer || "Black"}</Text>
                                 </View>
                             </View>
                         )}
@@ -428,10 +481,10 @@ export function ReelCard({
             </Animated.View>
 
             {/* Actions */}
-            <Animated.View style={{ opacity: uiOpacity, position: 'absolute', right: 16, bottom: bottomPadding + 80 }}>
+            <Animated.View style={{ opacity: uiOpacity, position: 'absolute', right: 16, bottom: bottomPadding + 80 }} pointerEvents={isImmersive ? "none" : "box-none"}>
                 <ReelActions
-                    likes={reel.engagement?.likes || 0}
-                    comments={reel.engagement?.comments || 0}
+                    likes={storeEngagement?.likes ?? reel.engagement?.likes ?? 0}
+                    comments={storeEngagement?.comments ?? reel.engagement?.comments ?? 0}
                     isLiked={isLiked}
                     isSaved={isSaved}
                     onLike={onLike}
@@ -443,7 +496,7 @@ export function ReelCard({
 
             {/* Swipe Hint for Interactive Challenge */}
             {showSwipeHint && hasInteractiveChallenge && (
-                <Animated.View style={[styles.swipeHint, { opacity: swipeHintOpacity, transform: [{ scale: swipeHintPulse }] }]}>
+                <Animated.View style={[styles.swipeHint, { opacity: Animated.multiply(swipeHintOpacity, uiOpacity), transform: [{ scale: swipeHintPulse }] }]}>
                     <View style={styles.swipeHintInner}>
                         <Ionicons name="game-controller" size={18} color="#F5A623" />
                         <Text style={styles.swipeHintText}>Swipe to play</Text>
@@ -484,7 +537,7 @@ export function ReelCard({
                 <View style={styles.coinGateOverlay}>
                     <View style={styles.playerSelectCard}>
                         <Ionicons name="game-controller" size={28} color="#F5A623" />
-                        <Text style={styles.playerSelectTitle}>Choose Your Side</Text>
+                        <Text style={styles.playerSelectTitle}>{reel.interactive?.challengePrompt?.trim() || 'Choose Your Side'}</Text>
                         <View style={styles.playerSelectRow}>
                             <TouchableOpacity
                                 style={styles.playerSelectOption}
@@ -543,25 +596,26 @@ const styles = StyleSheet.create({
     poster: { width: "100%", height: "100%", resizeMode: "cover" },
     loadingContainer: { ...StyleSheet.absoluteFillObject, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.3)" },
     playButton: { position: "absolute", top: "50%", left: "50%", transform: [{ translateX: -40 }, { translateY: -40 }] },
+    pauseIndicator: { position: "absolute", top: "50%", left: "50%", transform: [{ translateX: -40 }, { translateY: -40 }], zIndex: 999 },
     playIconContainer: { width: 80, height: 80, borderRadius: 40, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", paddingLeft: 4 },
-    muteButtonInner: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center" as const, alignItems: "center" as const },
+
     topGradientInner: { height: 120 },
     bottomGradientInner: { paddingTop: 100, paddingHorizontal: 16, justifyContent: "flex-end" as const },
-    contentContainer: { width: "85%" },
+    contentContainer: { width: "75%", paddingBottom: 8 },
     difficultyBadge: { alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginBottom: 8 },
     difficultyText: { fontFamily: FONTS.extrabold, color: "#FFFFFF", fontSize: 11, letterSpacing: 0.5 },
     title: { fontFamily: FONTS.bold, color: "#FFFFFF", fontSize: 18, marginBottom: 6, textShadowColor: "rgba(0,0,0,0.5)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
     description: { fontFamily: FONTS.regular, color: "#FFFFFF", fontSize: 14, lineHeight: 20, marginBottom: 8, opacity: 0.9 },
     tagsContainer: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
     hashtag: { fontFamily: FONTS.semibold, color: "#F5A623", fontSize: 14 },
-    playerMatchup: { flexDirection: "row", alignItems: "center", marginTop: 4, paddingTop: 8, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.2)" },
-    playerInfo: { flexDirection: "row", alignItems: "center", gap: 6 },
+    playerMatchup: { flexDirection: "row", alignItems: "center", marginTop: 4, paddingTop: 8, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.2)", flexWrap: "wrap" },
+    playerInfo: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1 },
     playerDot: { width: 12, height: 12, borderRadius: 6 },
-    playerName: { fontFamily: FONTS.semibold, color: "#FFFFFF", fontSize: 14, maxWidth: 100 },
+    playerName: { fontFamily: FONTS.semibold, color: "#FFFFFF", fontSize: 14, flexShrink: 1 },
     vsText: { fontFamily: FONTS.bold, color: "#A0A0B0", fontSize: 12, marginHorizontal: 8, fontStyle: "italic" },
     errorContainer: { justifyContent: "center", alignItems: "center", backgroundColor: "#111629" },
     errorText: { fontFamily: FONTS.regular, color: "#6B7280", fontSize: 14, textAlign: "center" },
-    swipeHint: { position: "absolute", right: 12, top: "45%", zIndex: 50 },
+    swipeHint: { position: "absolute", left: 12, top: "45%", zIndex: 50 },
     swipeHintInner: { flexDirection: "column", alignItems: "center", gap: 4, backgroundColor: "rgba(0,0,0,0.65)", paddingHorizontal: 10, paddingVertical: 12, borderRadius: 14, borderWidth: 1, borderColor: "rgba(245,166,35,0.3)" },
     swipeHintText: { fontFamily: FONTS.semibold, fontSize: 10, color: "#F5A623", textAlign: "center" },
     coinGateOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.75)", justifyContent: "center", alignItems: "center", zIndex: 100 },

@@ -190,6 +190,10 @@ export default function InteractiveSession({
     useEffect(() => {
         if (moveHistory.length > 0) {
             setTimeout(() => moveListRef.current?.scrollToEnd({ animated: true }), 100);
+            // Reset timer on each move
+            if (timeLimit && timeLimit > 0 && !isTerminal) {
+                setTimeRemaining(timeLimit);
+            }
         }
     }, [moveHistory.length]);
 
