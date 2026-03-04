@@ -31,7 +31,7 @@ export interface ChessBoardProps {
   onSquarePress: (square: string) => void
   onSquareTouchStart?: (square: string, event: any) => void
   getSquareOverlays?: (file: string, rank: string, square: string, piece: string | null) => SquareOverlay[]
-  panResponder?: PanResponder.PanResponderInstance
+  panResponder?: any // Allow generic object since PanResponderInstance isn't exported directly via simple type
   customSquareStyles?: (square: string) => { square?: any; piece?: any }
 }
 

@@ -1,6 +1,6 @@
 export const BOARD_THEME = {
   lightSquare: "#F0D9B5",
-  darkSquare: "#769656",
+  darkSquare: "#B58863", // Updated to match the premium gold/brown color scheme from the game
   highlight: {
     capture: "#dc2626",
     move: "#16a34a",
