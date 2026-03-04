@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useGameStore } from '../../lib/stores/gameStore';
+import { getPieceComponent } from '../game/chessPieces'; // Unified pieces
 
 // ============== CONSTANTS ==============
 
@@ -24,12 +25,7 @@ const BOARD_PADDING = 4;
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const BOARD_SIZE = Math.min(SCREEN_WIDTH - 48, 380); // max 380px on tablets
 const SQUARE_SIZE = (BOARD_SIZE - BOARD_PADDING * 2) / 8;
-
-// Unicode chess pieces
-const PIECE_SYMBOLS: Record<string, string> = {
-    K: '♔', Q: '♕', R: '♖', B: '♗', N: '♘', P: '♙',
-    k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟',
-};
+const PIECE_SIZE = SQUARE_SIZE * 0.8; // unified scaling
 
 // Board colors
 const COLORS = {
@@ -202,12 +198,9 @@ export default function ChessBoard({ flipped }: ChessBoardProps) {
 
                                 {/* Piece */}
                                 {piece && (
-                                    <Text style={[
-                                        styles.piece,
-                                        { fontSize: SQUARE_SIZE * 0.7 },
-                                    ]}>
-                                        {PIECE_SYMBOLS[piece] || ''}
-                                    </Text>
+                                    <View style={styles.pieceContainer}>
+                                        {getPieceComponent(piece, PIECE_SIZE)}
+                                    </View>
                                 )}
 
                                 {/* Coordinate labels */}
@@ -266,11 +259,9 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         position: 'relative',
     },
-    piece: {
-        textAlign: 'center',
-        textShadowColor: 'rgba(0, 0, 0, 0.3)',
-        textShadowOffset: { width: 1, height: 1 },
-        textShadowRadius: 2,
+    pieceContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     moveIndicator: {
         position: 'absolute',

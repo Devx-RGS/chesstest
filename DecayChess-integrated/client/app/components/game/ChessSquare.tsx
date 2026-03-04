@@ -111,8 +111,6 @@ export const ChessSquare: React.FC<ChessSquareProps> = ({
             borderColor,
           },
         ]}
-        delayPressIn={0}
-        delayPressOut={0}
         onPressIn={() => {
           // Immediate response on press in (touchstart equivalent)
           if (onTouchStart) {
@@ -122,7 +120,7 @@ export const ChessSquare: React.FC<ChessSquareProps> = ({
               touchHandledRef.current = false
             }
             touchStartTimeRef.current = now
-            
+
             if (!touchHandledRef.current) {
               touchHandledRef.current = true
               onTouchStart(square, null)

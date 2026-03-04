@@ -7,13 +7,14 @@ import {
   SHADOWS,
   SPACING,
 } from "@/app/lib/styles/base";
+import { getPieceComponent } from "../game/chessPieces";
 
 type PieceColor = "white" | "black";
 
 type Piece = {
   id: string;
   color: PieceColor;
-  symbol: string;
+  pieceKey: string; // Used by getPieceComponent (e.g. 'K', 'q', 'r')
   isQueen?: boolean;
 };
 
@@ -23,10 +24,10 @@ type ShowcaseMove = {
   note: string;
   from?: string;
   to?: string;
-  triggersDecay?: boolean;
-  isQueenMove?: boolean;
+  isQueenMove?: "white" | "black";
+  activatesTimer?: boolean;
+  drainsTimer?: boolean;
   decayBonus?: number;
-  freezeQueen?: boolean;
   reset?: boolean;
 };
 
@@ -36,114 +37,48 @@ type LastMove = {
 };
 
 const MOVE_INTERVAL_MS = 1800;
-const DECAY_TIMER_START = 40;
+const DECAY_TIMER_START = 25; // Updated per user request to match actual Decay Chess
 const DECAY_DRAIN_PER_MOVE = 8;
 
 const BOARD_COLUMNS = ["a", "b", "c", "d", "e", "f", "g", "h"] as const;
 const BOARD_ROWS = [8, 7, 6, 5, 4, 3, 2, 1] as const;
 
 const INITIAL_POSITIONS: { square: string; piece: Piece }[] = [
-  { square: "e1", piece: { id: "wK", color: "white", symbol: "♔" } },
-  { square: "d1", piece: { id: "wQ", color: "white", symbol: "♕", isQueen: true } },
-  { square: "a1", piece: { id: "wR1", color: "white", symbol: "♖" } },
-  { square: "h1", piece: { id: "wR2", color: "white", symbol: "♖" } },
-  { square: "d2", piece: { id: "wP1", color: "white", symbol: "♙" } },
-  { square: "f2", piece: { id: "wP2", color: "white", symbol: "♙" } },
-  { square: "g2", piece: { id: "wP3", color: "white", symbol: "♙" } },
-  { square: "h2", piece: { id: "wP4", color: "white", symbol: "♙" } },
-  { square: "e8", piece: { id: "bK", color: "black", symbol: "♚" } },
-  { square: "d8", piece: { id: "bQ", color: "black", symbol: "♛" } },
-  { square: "c8", piece: { id: "bB", color: "black", symbol: "♝" } },
-  { square: "g8", piece: { id: "bN", color: "black", symbol: "♞" } },
-  { square: "h8", piece: { id: "bR2", color: "black", symbol: "♜" } },
-  { square: "d7", piece: { id: "bP1", color: "black", symbol: "♟" } },
-  { square: "e7", piece: { id: "bP2", color: "black", symbol: "♟" } },
-  { square: "f7", piece: { id: "bP3", color: "black", symbol: "♟" } },
-  { square: "g7", piece: { id: "bP4", color: "black", symbol: "♟" } },
-  { square: "h7", piece: { id: "bP5", color: "black", symbol: "♟" } },
+  { square: "e1", piece: { id: "wK", color: "white", pieceKey: "K" } },
+  { square: "d1", piece: { id: "wQ", color: "white", pieceKey: "Q", isQueen: true } },
+  { square: "a1", piece: { id: "wR1", color: "white", pieceKey: "R" } },
+  { square: "h1", piece: { id: "wR2", color: "white", pieceKey: "R" } },
+  { square: "d2", piece: { id: "wP1", color: "white", pieceKey: "P" } },
+  { square: "f2", piece: { id: "wP2", color: "white", pieceKey: "P" } },
+  { square: "g2", piece: { id: "wP3", color: "white", pieceKey: "P" } },
+  { square: "h2", piece: { id: "wP4", color: "white", pieceKey: "P" } },
+  { square: "e8", piece: { id: "bK", color: "black", pieceKey: "k" } },
+  { square: "d8", piece: { id: "bQ", color: "black", pieceKey: "q", isQueen: true } },
+  { square: "c8", piece: { id: "bB", color: "black", pieceKey: "b" } },
+  { square: "g8", piece: { id: "bN", color: "black", pieceKey: "n" } },
+  { square: "h8", piece: { id: "bR2", color: "black", pieceKey: "r" } },
+  { square: "d7", piece: { id: "bP1", color: "black", pieceKey: "p" } },
+  { square: "e7", piece: { id: "bP2", color: "black", pieceKey: "p" } },
+  { square: "f7", piece: { id: "bP3", color: "black", pieceKey: "p" } },
+  { square: "g7", piece: { id: "bP4", color: "black", pieceKey: "p" } },
+  { square: "h7", piece: { id: "bP5", color: "black", pieceKey: "p" } },
 ];
 
 const SHOWCASE_MOVES: ShowcaseMove[] = [
-  {
-    note: "Watch a Decay duel—this board auto-plays a short sequence.",
-    reset: true,
-  },
-  {
-    from: "d2",
-    to: "d4",
-    note: "White opens the center so the queen can break out.",
-  },
-  {
-    from: "d7",
-    to: "d6",
-    note: "Black keeps the structure solid and eyes the same file.",
-  },
-  {
-    from: "d1",
-    to: "h5",
-    note: "First queen move starts a 40s Decay timer.",
-    triggersDecay: true,
-    isQueenMove: true,
-  },
-  {
-    from: "g8",
-    to: "f6",
-    note: "Black develops and nudges the queen.",
-  },
-  {
-    from: "h5",
-    to: "f7",
-    note: "Queen strikes f7—+2s bonus but the timer keeps draining.",
-    isQueenMove: true,
-    decayBonus: 2,
-  },
-  {
-    from: "e8",
-    to: "d7",
-    note: "Black king sidesteps the pressure.",
-  },
-  {
-    from: "f7",
-    to: "e7",
-    note: "Another queen move, another chunk off the Decay clock.",
-    isQueenMove: true,
-  },
-  {
-    from: "c8",
-    to: "b7",
-    note: "Black posts the light-squared bishop on a long diagonal.",
-  },
-  {
-    from: "e7",
-    to: "e2",
-    note: "The queen races home with only seconds remaining.",
-    isQueenMove: true,
-  },
-  {
-    from: "d8",
-    to: "e8",
-    note: "Black's queen grabs the open file.",
-  },
-  {
-    from: "e2",
-    to: "c2",
-    note: "One more queen move empties the timer completely.",
-    isQueenMove: true,
-  },
-  {
-    note: "Timer expires—White's queen is now frozen in place.",
-    freezeQueen: true,
-  },
-  {
-    from: "a1",
-    to: "d1",
-    note: "Other pieces take over while the queen stays locked.",
-  },
-  {
-    from: "b7",
-    to: "g2",
-    note: "Play continues: the bishop slices down to g2.",
-  },
+  { note: "Watch a Decay duel—both queens will race against time.", reset: true },
+  { from: "d2", to: "d4", note: "White opens the center so the queen can break out." },
+  { from: "d7", to: "d5", note: "Black challenges." },
+  { from: "d1", to: "d3", note: "White queen moves! Her 25s timer begins.", isQueenMove: "white", activatesTimer: true },
+  { from: "d8", to: "d6", note: "Black queen enters the fray. Her timer starts too.", isQueenMove: "black", activatesTimer: true },
+  { from: "d3", to: "g3", note: "White queen shifts, shedding an 8s chunk off the clock.", isQueenMove: "white", drainsTimer: true },
+  { from: "d6", to: "g6", note: "Black queen mirrors, her clock also drains.", isQueenMove: "black", drainsTimer: true },
+  { from: "g3", to: "h3", note: "White queen burns more time.", isQueenMove: "white", drainsTimer: true },
+  { from: "g6", to: "h6", note: "Black queen follows suit.", isQueenMove: "black", drainsTimer: true },
+  { from: "h3", to: "e3", note: "White queen is down to 1 second!", isQueenMove: "white", drainsTimer: true },
+  { from: "h6", to: "e6", note: "Black queen is also on the brink.", isQueenMove: "black", drainsTimer: true },
+  { from: "e3", to: "c3", note: "White queen's 25s timer empties. She is REMOVED.", isQueenMove: "white", drainsTimer: true },
+  { from: "e6", to: "c6", note: "Black queen is also removed! Both are gone.", isQueenMove: "black", drainsTimer: true },
+  { from: "g1", to: "f3", note: "Now other pieces must take over the fight." },
 ];
 
 const createInitialBoard = (): BoardState => {
@@ -159,9 +94,11 @@ const DecayShowcase = () => {
   const [moveIndex, setMoveIndex] = useState(0);
   const [statusMessage, setStatusMessage] = useState(SHOWCASE_MOVES[0].note);
   const [lastMove, setLastMove] = useState<LastMove>({});
-  const [decayActive, setDecayActive] = useState(false);
-  const [decayTimer, setDecayTimer] = useState(DECAY_TIMER_START);
-  const [queenFrozen, setQueenFrozen] = useState(false);
+  const [whiteTimer, setWhiteTimer] = useState(DECAY_TIMER_START);
+  const [whiteActive, setWhiteActive] = useState(false);
+
+  const [blackTimer, setBlackTimer] = useState(DECAY_TIMER_START);
+  const [blackActive, setBlackActive] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -177,77 +114,81 @@ const DecayShowcase = () => {
 
     if (move.reset) {
       setBoardState(createInitialBoard());
-      setDecayActive(false);
-      setDecayTimer(DECAY_TIMER_START);
-      setQueenFrozen(false);
-      setLastMove({});
-      return;
-    }
-
-    if (move.freezeQueen) {
-      setQueenFrozen(true);
-      setDecayActive(false);
-      setDecayTimer(0);
+      setWhiteActive(false); setWhiteTimer(DECAY_TIMER_START);
+      setBlackActive(false); setBlackTimer(DECAY_TIMER_START);
       setLastMove({});
       return;
     }
 
     if (move.from && move.to) {
+      const fromSquare = move.from;
+      const toSquare = move.to;
+
       setBoardState((prev) => {
-        const movingPiece = prev[move.from];
+        const movingPiece = prev[fromSquare];
         if (!movingPiece) {
           return prev;
         }
-        if (queenFrozen && movingPiece.isQueen) {
-          return prev;
-        }
         const updated: BoardState = { ...prev };
-        delete updated[move.from];
-        updated[move.to] = { ...movingPiece };
+        delete updated[fromSquare];
+        updated[toSquare] = { ...movingPiece };
         return updated;
       });
-      setLastMove({ from: move.from, to: move.to });
+      setLastMove({ from: fromSquare, to: toSquare });
     } else {
       setLastMove({});
     }
 
-    if (move.triggersDecay) {
-      setDecayActive(true);
-      setDecayTimer(DECAY_TIMER_START);
-      return;
+    if (move.isQueenMove === "white") {
+      if (move.activatesTimer) setWhiteActive(true);
+      if (move.drainsTimer) {
+        setWhiteTimer((prev) => {
+          const next = Math.max(prev - DECAY_DRAIN_PER_MOVE + (move.decayBonus ?? 0), 0);
+          if (next === 0) {
+            setWhiteActive(false);
+            setBoardState((board) => {
+              const updated = { ...board };
+              // Find and remove White Queen
+              Object.keys(updated).forEach(sq => {
+                if (updated[sq]?.isQueen && updated[sq]?.color === "white") {
+                  delete updated[sq];
+                }
+              });
+              return updated;
+            });
+          }
+          return next;
+        });
+      }
+    } else if (move.isQueenMove === "black") {
+      if (move.activatesTimer) setBlackActive(true);
+      if (move.drainsTimer) {
+        setBlackTimer((prev) => {
+          const next = Math.max(prev - DECAY_DRAIN_PER_MOVE + (move.decayBonus ?? 0), 0);
+          if (next === 0) {
+            setBlackActive(false);
+            setBoardState((board) => {
+              const updated = { ...board };
+              // Find and remove Black Queen
+              Object.keys(updated).forEach(sq => {
+                if (updated[sq]?.isQueen && updated[sq]?.color === "black") {
+                  delete updated[sq];
+                }
+              });
+              return updated;
+            });
+          }
+          return next;
+        });
+      }
     }
-
-    if (move.isQueenMove && decayActive && !queenFrozen) {
-      setDecayTimer((prev) => {
-        let next = Math.max(prev - DECAY_DRAIN_PER_MOVE + (move.decayBonus ?? 0), 0);
-        if (next === 0) {
-          setQueenFrozen(true);
-          setDecayActive(false);
-        }
-        return next;
-      });
-    }
-  }, [moveIndex, decayActive, queenFrozen]);
-
-  const timerPercent = decayActive || queenFrozen ? (decayTimer / DECAY_TIMER_START) * 100 : 100;
-  const badgeLabel = queenFrozen ? "Frozen" : decayActive ? "Live" : "Preview";
+  }, [moveIndex]);
 
   return (
     <View style={styles.card}>
       <View style={styles.cardContent}>
         <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.title}>Showcase</Text>
-            <Text style={styles.subtitle}>Mini board auto-plays in real time</Text>
-          </View>
-          <View
-            style={[
-              styles.badge,
-              queenFrozen ? styles.badgeFrozen : decayActive ? styles.badgeLive : styles.badgeIdle,
-            ]}
-          >
-            <Text style={styles.badgeText}>{badgeLabel}</Text>
-          </View>
+          <Text style={styles.title}>Preview</Text>
         </View>
 
         <View style={styles.boardContainer}>
@@ -259,7 +200,10 @@ const DecayShowcase = () => {
                 const isLightSquare = (row + index) % 2 === 0;
                 const isLastMoveSquare = lastMove.from === square || lastMove.to === square;
                 const isQueenSquare = piece?.isQueen;
-                const isFrozenQueen = isQueenSquare && queenFrozen;
+                const isWhiteQueen = isQueenSquare && piece?.color === "white";
+                const isBlackQueen = isQueenSquare && piece?.color === "black";
+                const qActive = (isWhiteQueen && whiteActive) || (isBlackQueen && blackActive);
+                const qTimer = isWhiteQueen ? whiteTimer : (isBlackQueen ? blackTimer : 0);
 
                 return (
                   <View
@@ -268,44 +212,27 @@ const DecayShowcase = () => {
                       styles.square,
                       { backgroundColor: isLightSquare ? THEME_COLORS.lightSquare : THEME_COLORS.darkSquare },
                       isLastMoveSquare && styles.lastMoveSquare,
-                      isQueenSquare && decayActive && styles.decayPulse,
-                      isFrozenQueen && styles.frozenSquare,
+                      qActive && styles.decayPulse,
                     ]}
                   >
                     {piece ? (
-                      <Text
-                        style={[
-                          styles.pieceText,
-                          piece.color === "white" ? styles.whitePiece : styles.blackPiece,
-                          isFrozenQueen && styles.frozenPiece,
-                        ]}
-                      >
-                        {piece.symbol}
-                      </Text>
+                      <View>
+                        {getPieceComponent(piece.pieceKey, 20)}
+                      </View>
                     ) : null}
+
+                    {isQueenSquare && qActive && (
+                      <View style={[styles.inlineTimerOverlay]}>
+                        <Text style={[styles.inlineTimerText]} numberOfLines={1}>
+                          {qTimer}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 );
               })}
             </View>
           ))}
-        </View>
-
-        <View>
-          <View style={styles.timerRow}>
-            <Text style={styles.timerLabel}>Decay Timer</Text>
-            <Text style={[styles.timerValue, queenFrozen && styles.timerValueExpired]}>
-              {queenFrozen ? "Queen Locked" : decayActive ? `${decayTimer}s` : "Idle"}
-            </Text>
-          </View>
-          <View style={styles.timerTrack}>
-            <View
-              style={[
-                styles.timerFill,
-                { width: `${timerPercent}%` },
-                queenFrozen && styles.timerFillExpired,
-              ]}
-            />
-          </View>
         </View>
 
         <Text style={styles.caption} numberOfLines={2} ellipsizeMode="tail">
@@ -416,40 +343,25 @@ const styles = StyleSheet.create({
   frozenSquare: {
     backgroundColor: "rgba(255, 255, 255, 0.15)",
   },
-  frozenPiece: {
-    color: "#EAB308",
+  frozenPieceContainer: {
+    opacity: 0.5, // Visual queue to simulate frozen PNG piece
   },
-  timerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: SPACING.xs,
+  inlineTimerOverlay: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    backgroundColor: "rgba(0,0,0,0.75)",
+    paddingHorizontal: 3,
+    paddingVertical: 1,
+    borderRadius: 4,
+    zIndex: 10,
+    borderWidth: 0.5,
+    borderColor: "rgba(245, 166, 35, 0.5)",
   },
-  timerLabel: {
-    color: THEME_COLORS.secondaryText,
-    fontSize: FONT_SIZES.medium,
-  },
-  timerValue: {
+  inlineTimerText: {
     color: "#F5A623",
-    fontSize: FONT_SIZES.large,
+    fontSize: 7,
     fontWeight: "700",
-  },
-  timerValueExpired: {
-    color: "#FF6B6B",
-  },
-  timerTrack: {
-    height: 6,
-    borderRadius: BORDER_RADIUS.medium,
-    backgroundColor: "#3A3A3C",
-    marginBottom: SPACING.md,
-    overflow: "hidden",
-  },
-  timerFill: {
-    height: "100%",
-    backgroundColor: "#F5A623",
-  },
-  timerFillExpired: {
-    backgroundColor: "#FF6B6B",
   },
   caption: {
     color: THEME_COLORS.white,
