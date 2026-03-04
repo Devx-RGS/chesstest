@@ -29,15 +29,15 @@ const PIECE_SIZE = SQUARE_SIZE * 0.8; // unified scaling
 
 // Board colors
 const COLORS = {
-    lightSquare: '#F0D9B5',
-    darkSquare: '#B58863',
-    selectedSquare: '#829769',
+    lightSquare: '#EBECD0',
+    darkSquare: '#779556',
+    selectedSquare: '#BACA44',
     legalMoveLight: 'rgba(130, 151, 105, 0.5)',
     legalMoveDark: 'rgba(130, 151, 105, 0.5)',
-    lastMoveLight: 'rgba(205, 210, 106, 0.4)',
-    lastMoveDark: 'rgba(170, 162, 58, 0.4)',
-    coordinateLight: '#B58863',
-    coordinateDark: '#F0D9B5',
+    lastMoveLight: '#F6F669',
+    lastMoveDark: '#BACA44',
+    coordinateLight: '#779556',
+    coordinateDark: '#EBECD0',
 };
 
 // Files and ranks
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
         borderRadius: 4,
         overflow: 'hidden',
         borderWidth: 2,
-        borderColor: '#654321',
+        borderColor: '#2c2c2c',
     },
     square: {
         alignItems: 'center',

@@ -10,11 +10,13 @@ import {
     ViewToken,
     Share,
     Image,
+    Animated,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { ReelCard } from "../components/reels/ReelCard";
+import { CommentSheet } from "../components/reels/CommentSheet";
 import {
     useRandomReels,
     useAvailableGrandmasters,
@@ -39,7 +41,17 @@ export default function ReelsScreen() {
     const [activeTab, setActiveTab] = useState<TabType>("random");
     const [selectedGM, setSelectedGM] = useState<string | null>(null);
     const [currentIndex, setCurrentIndex] = useState(0);
+    const [commentReelId, setCommentReelId] = useState<string | null>(null);
     const flatListRef = useRef<FlatList>(null);
+    const tabBarOpacity = useRef(new Animated.Value(1)).current;
+
+    const handleImmersiveChange = useCallback((isImmersive: boolean) => {
+        Animated.timing(tabBarOpacity, {
+            toValue: isImmersive ? 0 : 1,
+            duration: 300,
+            useNativeDriver: true,
+        }).start();
+    }, [tabBarOpacity]);
 
     const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
     const userId = useAuthStore((s) => s.user?.id);
@@ -128,7 +140,9 @@ export default function ReelsScreen() {
         if (userId) viewMutation.mutate({ reelId, viewerId: userId });
     }, [incrementViews, userId, viewMutation]);
 
-    const handleComment = useCallback(() => { }, []);
+    const handleComment = useCallback((reelId: string) => {
+        setCommentReelId(reelId);
+    }, []);
 
     const handleShare = useCallback(async (reel: Reel) => {
         try {
@@ -145,12 +159,13 @@ export default function ReelsScreen() {
                 isSaved={isSaved(item._id)}
                 onLike={() => handleLike(item._id)}
                 onSave={() => handleSave(item._id)}
-                onComment={handleComment}
+                onComment={() => handleComment(item._id)}
                 onShare={() => handleShare(item)}
                 onView={() => handleView(item._id)}
+                onImmersiveChange={handleImmersiveChange}
             />
         ),
-        [currentIndex, isLiked, isSaved, handleLike, handleSave, handleComment, handleShare, handleView]
+        [currentIndex, isLiked, isSaved, handleLike, handleSave, handleComment, handleShare, handleView, handleImmersiveChange]
     );
 
     const tabs: { key: TabType; label: string; icon: string }[] = [
@@ -192,7 +207,7 @@ export default function ReelsScreen() {
             <StatusBar style="light" />
 
             {/* Tab Bar */}
-            <View style={styles.tabBar}>
+            <Animated.View style={[styles.tabBar, { opacity: tabBarOpacity }]} pointerEvents="auto">
                 {tabs.map((tab) => (
                     <TouchableOpacity
                         key={tab.key}
@@ -213,20 +228,22 @@ export default function ReelsScreen() {
                         </Text>
                     </TouchableOpacity>
                 ))}
-            </View>
+            </Animated.View>
 
             {/* Grand Masters folder back button */}
             {activeTab === "grandmaster" && selectedGM && (
-                <TouchableOpacity
-                    style={styles.backButton}
-                    onPress={() => {
-                        setSelectedGM(null);
-                        setCurrentIndex(0);
-                    }}
-                >
-                    <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
-                    <Text style={styles.backText}>{selectedGM}</Text>
-                </TouchableOpacity>
+                <Animated.View style={{ opacity: tabBarOpacity }}>
+                    <TouchableOpacity
+                        style={styles.backButton}
+                        onPress={() => {
+                            setSelectedGM(null);
+                            setCurrentIndex(0);
+                        }}
+                    >
+                        <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+                        <Text style={styles.backText}>{selectedGM}</Text>
+                    </TouchableOpacity>
+                </Animated.View>
             )}
 
             {/* GM Folder Grid View */}
@@ -296,6 +313,13 @@ export default function ReelsScreen() {
                     )}
                 </>
             )}
+
+            {/* Comment Bottom Sheet */}
+            <CommentSheet
+                reelId={commentReelId}
+                visible={!!commentReelId}
+                onClose={() => setCommentReelId(null)}
+            />
         </View>
     );
 }
