@@ -1,6 +1,7 @@
 import Reel from "../models/Reel.js";
 import Comment from "../models/Comment.js";
 import Grandmaster from "../models/Grandmaster.js";
+import { awardCoins, reelWatchedCountToday } from "../services/coinService.js";
 
 // GET /reels - Get all published reels (paginated feed)
 export const getFeed = async (req, res) => {
@@ -181,6 +182,17 @@ export const viewReel = async (req, res) => {
             message: "View recorded",
             views: reel.engagement.views,
         });
+
+        // Award reel_watched coin (max 5 per day, fire-and-forget)
+        const userId = req.user?.userId;
+        if (userId) {
+            reelWatchedCountToday(userId).then(count => {
+                if (count < 5) {
+                    awardCoins(userId, 1, "reel_watched", { reelId }).catch(e => console.warn("[Coins] reel_watched failed:", e));
+                }
+            }).catch(e => console.warn("[Coins] reel_watched check failed:", e));
+        }
+
         console.log(`POST /reels/${reelId}/view - View recorded, total views: ${reel.engagement.views}`);
     } catch (err) {
         console.error("POST /reels/:reelId/view - Error:", err);

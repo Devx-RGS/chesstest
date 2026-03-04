@@ -22,6 +22,8 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useGameStore, SessionStatus } from '../../lib/stores/gameStore';
+import { useCoinStore } from '../../lib/stores/coinStore';
+import { useSpendCoins } from '../../lib/services/coinApi';
 import {
     getStatusColor,
     getStatusLabel,
@@ -68,6 +70,24 @@ export default function InteractiveSession({
     const moveListRef = useRef<ScrollView>(null);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+    const [showHintConfirm, setShowHintConfirm] = useState(false);
+    const [hintRevealed, setHintRevealed] = useState(false);
+    const [hintError, setHintError] = useState<string | null>(null);
+
+    const HINT_COST = 3;
+
+    // Coin store + API
+    const coinBalance = useCoinStore((s) => s.balance);
+    const optimisticSpend = useCoinStore((s) => s.optimisticSpend);
+    const rollbackSpend = useCoinStore((s) => s.rollbackSpend);
+    const updateCoinBalance = useCoinStore((s) => s.updateBalance);
+    const fetchCoinBalance = useCoinStore((s) => s.fetchBalance);
+    const spendCoinsMutation = useSpendCoins();
+
+    // Refresh coin balance when session opens
+    useEffect(() => {
+        if (visible) fetchCoinBalance();
+    }, [visible]);
 
     const isTerminal = sessionStatus === 'checkmate' || sessionStatus === 'stalemate'
         || sessionStatus === 'draw' || sessionStatus === 'collapsed';
@@ -174,8 +194,40 @@ export default function InteractiveSession({
     }, [moveHistory.length]);
 
     const handleClose = useCallback(() => endSession(), [endSession]);
-    const handleRetry = useCallback(() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); restartSession(); }, [restartSession]);
+    const handleRetry = useCallback(() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        setHintRevealed(false);
+        setHintError(null);
+        restartSession();
+    }, [restartSession]);
     const handleGoBack = useCallback(() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); endSession(); }, [endSession]);
+
+    // Hint purchase handler
+    const handleHintPurchase = useCallback(async () => {
+        setHintError(null);
+        if (coinBalance < HINT_COST) {
+            setHintError('Not enough coins');
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            return;
+        }
+        optimisticSpend(HINT_COST);
+        setShowHintConfirm(false);
+        try {
+            const result = await spendCoinsMutation.mutateAsync({ amount: HINT_COST, reason: 'hint_used', metadata: { type: 'best_move' } });
+            if (result.success) {
+                updateCoinBalance(result.newBalance!);
+                setHintRevealed(true);
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } else {
+                rollbackSpend(HINT_COST);
+                setHintError(result.error === 'insufficient_coins' ? 'Not enough coins' : 'Failed to purchase hint');
+            }
+        } catch (e) {
+            rollbackSpend(HINT_COST);
+            setHintError('Failed to purchase hint');
+            console.warn('[InteractiveSession] Hint purchase failed:', e);
+        }
+    }, [coinBalance, optimisticSpend, rollbackSpend, updateCoinBalance, spendCoinsMutation]);
 
     const statusColor = evaluation ? getStatusColor(evaluation.status) : '#888';
     const statusLabel = evaluation ? getStatusLabel(evaluation.status) : '● Analyzing...';
@@ -229,9 +281,23 @@ export default function InteractiveSession({
                     <View style={styles.headerLeft}>
                         <Text style={styles.title} numberOfLines={1}>{title || '♟ Chess Challenge'}</Text>
                     </View>
-                    <TouchableOpacity onPress={handleClose} style={styles.closeButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                        <Ionicons name="close" size={18} color="#fff" />
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        {/* Hint Button */}
+                        {!hintRevealed && !isTerminal && (
+                            <TouchableOpacity
+                                onPress={() => { setHintError(null); setShowHintConfirm(true); }}
+                                style={styles.hintButton}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                                <Ionicons name="bulb-outline" size={16} color="#FFC107" />
+                                <Text style={styles.hintButtonText}>{HINT_COST}</Text>
+                                <Ionicons name="cash-outline" size={12} color="#F5A623" />
+                            </TouchableOpacity>
+                        )}
+                        <TouchableOpacity onPress={handleClose} style={styles.closeButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                            <Ionicons name="close" size={18} color="#fff" />
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
                 {/* Status Badge */}
@@ -272,8 +338,8 @@ export default function InteractiveSession({
                     <View style={styles.boardWrapper}><ChessBoard /></View>
                 </View>
 
-                {/* Best Move Hint */}
-                {bestMoveHint && (
+                {/* Best Move Hint (revealed after coin purchase) */}
+                {hintRevealed && bestMoveHint && (
                     <View style={styles.hintContainer}>
                         <Text style={styles.hintIcon}>💡</Text>
                         <Text style={styles.hintLabel}>Best move:</Text>
@@ -343,6 +409,37 @@ export default function InteractiveSession({
                         </LinearGradient>
                     </Animated.View>
                 )}
+
+                {/* Hint Confirmation Overlay */}
+                {showHintConfirm && (
+                    <View style={styles.hintConfirmOverlay}>
+                        <View style={styles.hintConfirmCard}>
+                            <Ionicons name="bulb" size={28} color="#FFC107" />
+                            <Text style={styles.hintConfirmTitle}>Use Hint?</Text>
+                            <Text style={styles.hintConfirmDesc}>
+                                Spend {HINT_COST} coins to reveal the best move.
+                                {"\n"}You have {coinBalance} coins.
+                            </Text>
+                            {hintError && (
+                                <Text style={styles.hintErrorText}>{hintError}</Text>
+                            )}
+                            {coinBalance >= HINT_COST ? (
+                                <TouchableOpacity style={styles.hintConfirmBtn} onPress={handleHintPurchase} activeOpacity={0.8}>
+                                    <Ionicons name="flash" size={16} color="#000" />
+                                    <Text style={styles.hintConfirmBtnText}>Spend {HINT_COST} Coins</Text>
+                                </TouchableOpacity>
+                            ) : (
+                                <View style={styles.hintInsufficientRow}>
+                                    <Ionicons name="alert-circle" size={14} color="#FF5252" />
+                                    <Text style={styles.hintInsufficientText}>Not enough coins</Text>
+                                </View>
+                            )}
+                            <TouchableOpacity style={styles.hintCancelBtn} onPress={() => setShowHintConfirm(false)}>
+                                <Text style={styles.hintCancelText}>Cancel</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                )}
             </Animated.View>
         </Modal>
     );
@@ -401,4 +498,17 @@ const styles = StyleSheet.create({
     timerTextDanger: { color: '#FF5252' },
     timerBarBg: { height: 4, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: 2, overflow: 'hidden' },
     timerBarFill: { height: '100%', borderRadius: 2 },
+    hintButton: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, backgroundColor: 'rgba(255, 193, 7, 0.15)', borderWidth: 1, borderColor: 'rgba(255, 193, 7, 0.3)' },
+    hintButtonText: { fontSize: 12, fontWeight: '700', color: '#FFC107' },
+    hintConfirmOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', zIndex: 200 },
+    hintConfirmCard: { backgroundColor: 'rgba(20,20,30,0.96)', borderRadius: 18, paddingVertical: 22, paddingHorizontal: 22, alignItems: 'center', width: '75%', maxWidth: 280, borderWidth: 1, borderColor: 'rgba(255,193,7,0.25)' },
+    hintConfirmTitle: { fontSize: 18, fontWeight: '800', color: '#fff', marginTop: 10, marginBottom: 4 },
+    hintConfirmDesc: { fontSize: 13, color: '#aaa', textAlign: 'center', marginBottom: 16, lineHeight: 18 },
+    hintErrorText: { fontSize: 12, color: '#FF5252', fontWeight: '600', marginBottom: 10 },
+    hintConfirmBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFC107', paddingVertical: 10, paddingHorizontal: 20, borderRadius: 12, marginBottom: 8 },
+    hintConfirmBtnText: { fontSize: 14, fontWeight: '800', color: '#000' },
+    hintInsufficientRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, marginBottom: 8 },
+    hintInsufficientText: { fontSize: 13, fontWeight: '600', color: '#FF5252' },
+    hintCancelBtn: { paddingVertical: 6 },
+    hintCancelText: { fontSize: 13, fontWeight: '600', color: '#666' },
 });

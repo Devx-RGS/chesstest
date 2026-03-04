@@ -51,6 +51,23 @@ const User = new mongoose.Schema(
             isAdmin: {
               type: Boolean,
               default: false
+            },
+            coinBalance: {
+              type: Number,
+              default: 0,
+              min: 0
+            },
+            coinTotalEarned: {
+              type: Number,
+              default: 0
+            },
+            coinTotalSpent: {
+              type: Number,
+              default: 0
+            },
+            interactivePlaysUsed: {
+              type: Number,
+              default: 0
             }
           }
 )

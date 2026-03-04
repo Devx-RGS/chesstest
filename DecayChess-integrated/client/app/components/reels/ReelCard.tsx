@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback } from "react";
+import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import {
     View,
     Text,
@@ -7,6 +7,7 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     Animated,
+    PanResponder,
 } from "react-native";
 import { Video, ResizeMode, AVPlaybackStatus, Audio } from "expo-av";
 import { LinearGradient } from "expo-linear-gradient";
@@ -17,6 +18,8 @@ import { ReelActions } from "./ReelActions";
 import { useFocusEffect } from "expo-router";
 import InteractiveSession from "./InteractiveSession";
 import { useGameStore } from "../../lib/stores/gameStore";
+import { useCoinStore } from "../../lib/stores/coinStore";
+import { useCheckInteractiveAccess, useSpendCoins } from "../../lib/services/coinApi";
 
 // Difficulty colors
 const getDifficultyColor = (difficulty: string) => {
@@ -72,22 +75,35 @@ export function ReelCard({
     const [hasRecordedView, setHasRecordedView] = useState(false);
     const [hasVideoError, setHasVideoError] = useState(false);
     const [isImmersive, setIsImmersive] = useState(false);
-    const [showChallengeCTA, setShowChallengeCTA] = useState(false);
     const [showInteractiveSession, setShowInteractiveSession] = useState(false);
-    const [hasChallengeTriggered, setHasChallengeTriggered] = useState(false);
+    const [showSwipeHint, setShowSwipeHint] = useState(false);
+    const [showCoinGate, setShowCoinGate] = useState(false);
+    const [showPlayerSelect, setShowPlayerSelect] = useState(false);
+    const [coinGateInfo, setCoinGateInfo] = useState<{ cost: number; balance: number } | null>(null);
     const viewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const immersiveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const uiOpacity = useRef(new Animated.Value(1)).current;
+    const swipeHintOpacity = useRef(new Animated.Value(0)).current;
+    const swipeHintPulse = useRef(new Animated.Value(1)).current;
+    const swipeHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Check if this reel has an interactive chess challenge
     const hasInteractiveChallenge = Boolean(reel.interactive?.chessFen);
-    const triggerTimestampMs = (reel.interactive?.triggerTimestamp || 0) * 1000;
 
     // Game store for interactive session
     const startSession = useGameStore((s) => s.startSession);
 
     // Check if video URL is valid
     const hasValidUrl = Boolean(reel.video?.url?.trim());
+
+    // Coin system
+    const coinBalance = useCoinStore((s) => s.balance);
+    const optimisticSpend = useCoinStore((s) => s.optimisticSpend);
+    const rollbackSpend = useCoinStore((s) => s.rollbackSpend);
+    const updateBalance = useCoinStore((s) => s.updateBalance);
+    const setInteractivePlays = useCoinStore((s) => s.setInteractivePlays);
+    const checkAccess = useCheckInteractiveAccess();
+    const spendCoins = useSpendCoins();
 
     // Reset states when reel changes
     useEffect(() => {
@@ -96,11 +112,110 @@ export function ReelCard({
         setHasRecordedView(false);
         setIsPlaying(false);
         setIsImmersive(false);
-        setShowChallengeCTA(false);
         setShowInteractiveSession(false);
-        setHasChallengeTriggered(false);
+        setShowSwipeHint(false);
+        setShowCoinGate(false);
+        setShowPlayerSelect(false);
+        setCoinGateInfo(null);
         uiOpacity.setValue(1);
+        swipeHintOpacity.setValue(0);
     }, [reel._id]);
+
+    // Swipe hint: show after 2s of viewing, pulse animation
+    useEffect(() => {
+        if (isVisible && hasInteractiveChallenge && !showInteractiveSession) {
+            swipeHintTimerRef.current = setTimeout(() => {
+                setShowSwipeHint(true);
+                Animated.timing(swipeHintOpacity, { toValue: 1, duration: 500, useNativeDriver: true }).start();
+                // Start pulsing loop
+                const pulse = Animated.loop(
+                    Animated.sequence([
+                        Animated.timing(swipeHintPulse, { toValue: 1.1, duration: 800, useNativeDriver: true }),
+                        Animated.timing(swipeHintPulse, { toValue: 1, duration: 800, useNativeDriver: true }),
+                    ])
+                );
+                pulse.start();
+            }, 2000);
+        } else {
+            if (swipeHintTimerRef.current) clearTimeout(swipeHintTimerRef.current);
+            setShowSwipeHint(false);
+            swipeHintOpacity.setValue(0);
+            swipeHintPulse.setValue(1);
+        }
+        return () => { if (swipeHintTimerRef.current) clearTimeout(swipeHintTimerRef.current); };
+    }, [isVisible, hasInteractiveChallenge, showInteractiveSession]);
+
+    // Helper to actually start the interactive session with a chosen color
+    const launchInteractiveSession = useCallback(async (color: 'w' | 'b') => {
+        try { await videoRef.current?.pauseAsync(); } catch (e) { /* ignore */ }
+        setIsPlaying(false);
+        setShowPlayerSelect(false);
+        startSession(reel.interactive!.chessFen!, color);
+        setShowInteractiveSession(true);
+    }, [reel.interactive, startSession]);
+
+    // Show player selection, or skip if color is forced
+    const promptPlayerSelection = useCallback(() => {
+        if (reel.interactive?.playerColor) {
+            // Forced color — skip selection
+            launchInteractiveSession(reel.interactive.playerColor);
+        } else {
+            setShowPlayerSelect(true);
+        }
+    }, [reel.interactive, launchInteractiveSession]);
+
+    // Swipe handler: detect horizontal swipe to open interactive session
+    const panResponder = useMemo(() => PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+            // Only capture horizontal gestures (not vertical scrolling)
+            return hasInteractiveChallenge && Math.abs(gestureState.dx) > 20 && Math.abs(gestureState.dy) < 30;
+        },
+        onPanResponderRelease: async (_, gestureState) => {
+            // Swipe left or right with sufficient distance
+            if (hasInteractiveChallenge && (gestureState.dx < -80 || gestureState.dx > 80)) {
+                // Check interactive access (free plays vs coin required)
+                try {
+                    const result = await checkAccess.mutateAsync();
+                    setInteractivePlays(result.playsUsed, result.totalFree);
+                    if (result.free) {
+                        // Free play available — show player selection
+                        promptPlayerSelection();
+                    } else {
+                        // Needs coins — show coin gate overlay
+                        setCoinGateInfo({ cost: result.cost || 3, balance: result.balance || coinBalance });
+                        setShowCoinGate(true);
+                    }
+                } catch (e) {
+                    // If API fails (e.g. offline), allow free play as fallback
+                    console.warn('[ReelCard] Interactive access check failed, allowing free:', e);
+                    promptPlayerSelection();
+                }
+            }
+        },
+    }), [hasInteractiveChallenge, reel.interactive, startSession, checkAccess, coinBalance, promptPlayerSelection]);
+
+    // Handle coin gate: user confirms spending coins
+    const handleCoinGateConfirm = useCallback(async () => {
+        if (!coinGateInfo) return;
+        const { cost } = coinGateInfo;
+        optimisticSpend(cost);
+        setShowCoinGate(false);
+        try {
+            const result = await spendCoins.mutateAsync({ amount: cost, reason: 'interactive_unlock', metadata: { reelId: reel._id } });
+            if (result.success) {
+                updateBalance(result.newBalance!);
+                promptPlayerSelection();
+            } else {
+                rollbackSpend(cost);
+                setCoinGateInfo({ cost, balance: result.balance || 0 });
+                setShowCoinGate(true);
+            }
+        } catch (e) {
+            rollbackSpend(cost);
+            console.warn('[ReelCard] Coin spend failed:', e);
+        }
+    }, [coinGateInfo, optimisticSpend, rollbackSpend, updateBalance, spendCoins, reel._id, promptPlayerSelection]);
 
     // Immersive mode timer
     useEffect(() => {
@@ -185,13 +300,6 @@ export function ReelCard({
         if (status.isLoaded) {
             setIsLoading(false);
             setIsPlaying(status.isPlaying);
-            // Interactive challenge trigger
-            if (hasInteractiveChallenge && !hasChallengeTriggered && !showInteractiveSession && status.positionMillis >= triggerTimestampMs && triggerTimestampMs > 0) {
-                setHasChallengeTriggered(true);
-                videoRef.current?.pauseAsync();
-                setIsPlaying(false);
-                setShowChallengeCTA(true);
-            }
             if (status.didJustFinish) videoRef.current?.replayAsync();
         }
     };
@@ -207,12 +315,6 @@ export function ReelCard({
         setIsMuted(!isMuted);
     };
 
-    const handleStartChallenge = useCallback((chosenColor: 'w' | 'b') => {
-        if (!reel.interactive?.chessFen) return;
-        setShowChallengeCTA(false);
-        startSession(reel.interactive.chessFen, chosenColor);
-        setShowInteractiveSession(true);
-    }, [reel.interactive, startSession]);
 
     const handleSessionEnd = useCallback(async () => {
         setShowInteractiveSession(false);
@@ -235,7 +337,7 @@ export function ReelCard({
     };
 
     return (
-        <View style={styles.container}>
+        <View style={styles.container} {...panResponder.panHandlers}>
             {/* Video Player */}
             <TouchableOpacity activeOpacity={1} onPress={handleVideoPress} style={StyleSheet.absoluteFill}>
                 {hasValidUrl && !hasVideoError ? (
@@ -339,51 +441,83 @@ export function ReelCard({
                 />
             </Animated.View>
 
-            {/* Interactive Chess Challenge CTA */}
-            {showChallengeCTA && hasInteractiveChallenge && (
-                <View style={styles.challengeOverlay}>
-                    <View style={styles.challengeCard}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                            <Ionicons name="game-controller" size={24} color="#fff" style={{ marginRight: 8 }} />
-                            <Text style={styles.challengeTitle}>Interactive Challenge!</Text>
-                        </View>
-                        <Text style={styles.challengeDesc}>
-                            {reel.interactive?.challengePrompt || reel.content.description || 'Can you find the best move?'}
+            {/* Swipe Hint for Interactive Challenge */}
+            {showSwipeHint && hasInteractiveChallenge && (
+                <Animated.View style={[styles.swipeHint, { opacity: swipeHintOpacity, transform: [{ scale: swipeHintPulse }] }]}>
+                    <View style={styles.swipeHintInner}>
+                        <Ionicons name="game-controller" size={18} color="#F5A623" />
+                        <Text style={styles.swipeHintText}>Swipe to play</Text>
+                        <Ionicons name="chevron-forward" size={14} color="#F5A623" />
+                    </View>
+                </Animated.View>
+            )}
+
+            {/* Coin Gate Overlay */}
+            {showCoinGate && coinGateInfo && (
+                <View style={styles.coinGateOverlay}>
+                    <View style={styles.coinGateCard}>
+                        <Ionicons name="cash-outline" size={32} color="#F5A623" />
+                        <Text style={styles.coinGateTitle}>Free plays used up!</Text>
+                        <Text style={styles.coinGateDesc}>
+                            Costs {coinGateInfo.cost} coins to play. You have {coinGateInfo.balance} coins.
                         </Text>
-                        {reel.interactive?.playerColor ? (
-                            <>
-                                <View style={styles.forcedColorBadge}>
-                                    <Ionicons name="person" size={28} color={reel.interactive.playerColor === 'w' ? "#f0f0f0" : "#333"} />
-                                    <Text style={styles.forcedColorText}>Play as {reel.interactive.playerColor === 'w' ? (reel.content.whitePlayer || 'White') : (reel.content.blackPlayer || 'Black')}</Text>
-                                </View>
-                                <TouchableOpacity
-                                    style={[styles.colorChoiceBtn, { backgroundColor: '#4CAF50', width: '100%', marginBottom: 12 }]}
-                                    onPress={() => handleStartChallenge(reel.interactive!.playerColor!)}
-                                    activeOpacity={0.8}
-                                >
-                                    <View style={{ marginBottom: 4 }}>
-                                        <Ionicons name="flash" size={28} color="#fff" />
-                                    </View>
-                                    <Text style={[styles.whiteBtnText, { color: '#fff' }]}>Accept Challenge</Text>
-                                </TouchableOpacity>
-                            </>
+                        {coinGateInfo.balance >= coinGateInfo.cost ? (
+                            <TouchableOpacity style={styles.coinGateConfirm} onPress={handleCoinGateConfirm} activeOpacity={0.8}>
+                                <Ionicons name="flash" size={18} color="#fff" />
+                                <Text style={styles.coinGateConfirmText}>Spend {coinGateInfo.cost} Coins</Text>
+                            </TouchableOpacity>
                         ) : (
-                            <>
-                                <Text style={styles.challengeChooseText}>Choose your side:</Text>
-                                <View style={styles.colorChoiceRow}>
-                                    <TouchableOpacity style={[styles.colorChoiceBtn, styles.whiteBtn]} onPress={() => handleStartChallenge('w')} activeOpacity={0.8}>
-                                        <View style={{ marginBottom: 4, width: 28, height: 28, borderRadius: 14, backgroundColor: '#fff', borderWidth: 2, borderColor: '#ccc' }} />
-                                        <Text style={styles.whiteBtnText}>{reel.content.whitePlayer || 'White'}</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity style={[styles.colorChoiceBtn, styles.blackBtn]} onPress={() => handleStartChallenge('b')} activeOpacity={0.8}>
-                                        <View style={{ marginBottom: 4, width: 28, height: 28, borderRadius: 14, backgroundColor: '#333', borderWidth: 2, borderColor: '#555' }} />
-                                        <Text style={styles.blackBtnText}>{reel.content.blackPlayer || 'Black'}</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </>
+                            <View style={styles.coinGateInsufficient}>
+                                <Ionicons name="alert-circle" size={16} color="#FF5252" />
+                                <Text style={styles.coinGateInsufficientText}>Not enough coins</Text>
+                            </View>
                         )}
-                        <TouchableOpacity style={styles.challengeSkip} onPress={async () => { setShowChallengeCTA(false); await videoRef.current?.playAsync(); setIsPlaying(true); }}>
-                            <Text style={styles.challengeSkipText}>Skip →</Text>
+                        <TouchableOpacity style={styles.coinGateCancel} onPress={() => setShowCoinGate(false)}>
+                            <Text style={styles.coinGateCancelText}>Cancel</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            )}
+
+            {/* Player Selection Overlay */}
+            {showPlayerSelect && (
+                <View style={styles.coinGateOverlay}>
+                    <View style={styles.playerSelectCard}>
+                        <Ionicons name="game-controller" size={28} color="#F5A623" />
+                        <Text style={styles.playerSelectTitle}>Choose Your Side</Text>
+                        <View style={styles.playerSelectRow}>
+                            <TouchableOpacity
+                                style={styles.playerSelectOption}
+                                onPress={() => launchInteractiveSession('w')}
+                                activeOpacity={0.8}
+                            >
+                                <View style={[styles.playerSelectPiece, { backgroundColor: '#fff' }]}>
+                                    <Text style={{ fontSize: 22 }}>♔</Text>
+                                </View>
+                                <Text style={styles.playerSelectName} numberOfLines={1}>
+                                    {reel.content.whitePlayer || 'White'}
+                                </Text>
+                                <Text style={styles.playerSelectSide}>White</Text>
+                            </TouchableOpacity>
+
+                            <Text style={styles.playerSelectVs}>VS</Text>
+
+                            <TouchableOpacity
+                                style={styles.playerSelectOption}
+                                onPress={() => launchInteractiveSession('b')}
+                                activeOpacity={0.8}
+                            >
+                                <View style={[styles.playerSelectPiece, { backgroundColor: '#222', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' }]}>
+                                    <Text style={{ fontSize: 22 }}>♚</Text>
+                                </View>
+                                <Text style={styles.playerSelectName} numberOfLines={1}>
+                                    {reel.content.blackPlayer || 'Black'}
+                                </Text>
+                                <Text style={styles.playerSelectSide}>Black</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <TouchableOpacity style={styles.coinGateCancel} onPress={() => setShowPlayerSelect(false)}>
+                            <Text style={styles.coinGateCancelText}>Cancel</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -427,21 +561,25 @@ const styles = StyleSheet.create({
     vsText: { fontFamily: FONTS.bold, color: "#A0A0B0", fontSize: 12, marginHorizontal: 8, fontStyle: "italic" },
     errorContainer: { justifyContent: "center", alignItems: "center", backgroundColor: "#111629" },
     errorText: { fontFamily: FONTS.regular, color: "#6B7280", fontSize: 14, textAlign: "center" },
-    challengeOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", zIndex: 100 },
-    challengeCard: { backgroundColor: "rgba(30,30,30,0.95)", borderRadius: 20, paddingVertical: 28, paddingHorizontal: 24, alignItems: "center", width: "80%", maxWidth: 320, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" },
-    challengeTitle: { fontFamily: FONTS.extrabold, fontSize: 22, color: "#fff", marginBottom: 8 },
-    challengeDesc: { fontFamily: FONTS.regular, fontSize: 14, color: "#aaa", textAlign: "center", marginBottom: 20, lineHeight: 20 },
-    challengeSkip: { paddingVertical: 8 },
-    challengeSkipText: { fontFamily: FONTS.semibold, fontSize: 14, color: "#888" },
-    challengeChooseText: { fontFamily: FONTS.semibold, fontSize: 13, color: "#ccc", marginBottom: 12, textTransform: "uppercase", letterSpacing: 1 },
-    colorChoiceRow: { flexDirection: "row", gap: 12, marginBottom: 12, width: "100%" },
-    colorChoiceBtn: { flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-    whiteBtn: { backgroundColor: "#f0f0f0" },
-    blackBtn: { backgroundColor: "#333", borderWidth: 1, borderColor: "#555" },
-    colorBtnEmoji: { fontSize: 28, marginBottom: 4 },
-    whiteBtnText: { fontFamily: FONTS.extrabold, fontSize: 15, color: "#222" },
-    blackBtnText: { fontFamily: FONTS.extrabold, fontSize: 15, color: "#f0f0f0" },
-    forcedColorBadge: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(255,255,255,0.1)", paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, marginBottom: 16, width: "100%", justifyContent: "center" },
-    forcedColorEmoji: { fontSize: 28 },
-    forcedColorText: { fontFamily: FONTS.bold, fontSize: 16, color: "#fff" },
+    swipeHint: { position: "absolute", right: 12, top: "45%", zIndex: 50 },
+    swipeHintInner: { flexDirection: "column", alignItems: "center", gap: 4, backgroundColor: "rgba(0,0,0,0.65)", paddingHorizontal: 10, paddingVertical: 12, borderRadius: 14, borderWidth: 1, borderColor: "rgba(245,166,35,0.3)" },
+    swipeHintText: { fontFamily: FONTS.semibold, fontSize: 10, color: "#F5A623", textAlign: "center" },
+    coinGateOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.75)", justifyContent: "center", alignItems: "center", zIndex: 100 },
+    coinGateCard: { backgroundColor: "rgba(20,20,30,0.96)", borderRadius: 20, paddingVertical: 24, paddingHorizontal: 24, alignItems: "center", width: "78%", maxWidth: 300, borderWidth: 1, borderColor: "rgba(245,166,35,0.25)" },
+    coinGateTitle: { fontFamily: FONTS.bold, fontSize: 18, color: "#fff", marginTop: 12, marginBottom: 6 },
+    coinGateDesc: { fontFamily: FONTS.regular, fontSize: 13, color: "#aaa", textAlign: "center", marginBottom: 18, lineHeight: 18 },
+    coinGateConfirm: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#F5A623", paddingVertical: 12, paddingHorizontal: 24, borderRadius: 14, marginBottom: 10 },
+    coinGateConfirmText: { fontFamily: FONTS.extrabold, fontSize: 15, color: "#000" },
+    coinGateInsufficient: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 10, marginBottom: 10 },
+    coinGateInsufficientText: { fontFamily: FONTS.semibold, fontSize: 13, color: "#FF5252" },
+    coinGateCancel: { paddingVertical: 8 },
+    coinGateCancelText: { fontFamily: FONTS.semibold, fontSize: 14, color: "#666" },
+    playerSelectCard: { backgroundColor: "rgba(20,20,30,0.96)", borderRadius: 22, paddingVertical: 26, paddingHorizontal: 20, alignItems: "center", width: "85%", maxWidth: 340, borderWidth: 1, borderColor: "rgba(245,166,35,0.2)" },
+    playerSelectTitle: { fontFamily: FONTS.bold, fontSize: 20, color: "#fff", marginTop: 10, marginBottom: 20 },
+    playerSelectRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 16, width: "100%", marginBottom: 16 },
+    playerSelectOption: { flex: 1, alignItems: "center", paddingVertical: 18, paddingHorizontal: 8, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
+    playerSelectPiece: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", marginBottom: 10 },
+    playerSelectName: { fontFamily: FONTS.bold, fontSize: 13, color: "#fff", textAlign: "center", maxWidth: 100, marginBottom: 4 },
+    playerSelectSide: { fontFamily: FONTS.semibold, fontSize: 11, color: "#888", letterSpacing: 1 },
+    playerSelectVs: { fontFamily: FONTS.extrabold, fontSize: 14, color: "#555", letterSpacing: 1 },
 });

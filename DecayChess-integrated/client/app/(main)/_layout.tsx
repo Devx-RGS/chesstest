@@ -1,12 +1,21 @@
 import { Stack } from "expo-router";
-import React from "react";
+import React, { useEffect } from "react";
 import { ActivityIndicator, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRequireAuth } from "../lib/hooks/useRequireAuth";
+import { useCoinStore } from "../lib/stores/coinStore";
 import { StatusBar } from "expo-status-bar";
 
 export default function MainLayout() {
   const authStatus = useRequireAuth();
+  const fetchBalance = useCoinStore((s) => s.fetchBalance);
+
+  // Fetch coin balance once when authenticated
+  useEffect(() => {
+    if (authStatus === "ready") {
+      fetchBalance();
+    }
+  }, [authStatus]);
 
   if (authStatus === "checking") {
     return (

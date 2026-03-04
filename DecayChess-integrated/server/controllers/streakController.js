@@ -1,4 +1,5 @@
 import UserStreak from "../models/UserStreak.js";
+import { awardCoins, hasDailyLoginToday } from "../services/coinService.js";
 
 // Helper to check if two dates are on the same day
 const isSameDay = (date1, date2) => {
@@ -83,6 +84,9 @@ export const recordActivity = async (req, res) => {
                 { upsert: true, new: true }
             );
 
+            // Award daily login coin for first-time users
+            awardCoins(userId, 1, "daily_login").catch(e => console.warn("[Coins] daily_login award failed:", e));
+
             return res.json({
                 message: "Activity recorded",
                 currentStreak: streak.currentStreak,
@@ -127,6 +131,19 @@ export const recordActivity = async (req, res) => {
             },
             { new: true }
         );
+
+        // Award daily login coin (idempotent, once per day)
+        const alreadyAwarded = await hasDailyLoginToday(userId);
+        if (!alreadyAwarded) {
+            awardCoins(userId, 1, "daily_login").catch(e => console.warn("[Coins] daily_login award failed:", e));
+        }
+
+        // Award streak milestone coins
+        if (newCurrentStreak === 7) {
+            awardCoins(userId, 5, "streak_bonus_7", { streak: 7 }).catch(e => console.warn("[Coins] streak_bonus_7 failed:", e));
+        } else if (newCurrentStreak === 30) {
+            awardCoins(userId, 20, "streak_bonus_30", { streak: 30 }).catch(e => console.warn("[Coins] streak_bonus_30 failed:", e));
+        }
 
         res.json({
             message: "Activity recorded",

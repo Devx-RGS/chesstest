@@ -19,6 +19,7 @@ import * as Haptics from 'expo-haptics';
 import Layout from '../components/layout/Layout';
 import { useAuthStore } from '../lib/stores/authStore';
 import { useReelStore } from '../lib/stores/reelStore';
+import { useCoinStore } from '../lib/stores/coinStore';
 import Skeleton from '../components/ui/Skeleton';
 import GlassCard from '../components/ui/GlassCard';
 import GlassButton from '../components/ui/GlassButton';
@@ -33,6 +34,8 @@ function ProfileContent() {
   const savedReelsSet = useReelStore((s) => s.savedReels);
   const likedReelsSet = useReelStore((s) => s.likedReels);
   const reels = useReelStore((s) => s.reels);
+  const coinBalance = useCoinStore((s) => s.balance);
+  const fetchBalance = useCoinStore((s) => s.fetchBalance);
 
   const savedReelIds = useMemo(() => Array.from(savedReelsSet), [savedReelsSet]);
   const likedCount = useMemo(() => likedReelsSet.size, [likedReelsSet]);
@@ -47,6 +50,7 @@ function ProfileContent() {
       duration: 500,
       useNativeDriver: true,
     }).start();
+    fetchBalance(); // Refresh coin balance when profile opens
   }, []);
 
   const savedReels = reels.filter((r) => savedReelIds.includes(r._id));
@@ -152,6 +156,16 @@ function ProfileContent() {
               </View>
               <Text style={styles.statValue}>{savedReelIds.length}</Text>
               <Text style={styles.statLabel}>SAVED</Text>
+            </View>
+
+            <View style={styles.statDivider} />
+
+            <View style={styles.statItem}>
+              <View style={[styles.statIconBg, { backgroundColor: 'rgba(245, 166, 35, 0.15)' }]}>
+                <Ionicons name="cash" size={18} color={COLORS.accent} />
+              </View>
+              <Text style={styles.statValue}>{coinBalance}</Text>
+              <Text style={styles.statLabel}>COINS</Text>
             </View>
           </View>
         </GlassCard>
