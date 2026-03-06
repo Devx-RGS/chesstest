@@ -24,6 +24,26 @@ export const verifyToken = (req, res, next) => {
  * verifyAdmin — validates JWT + checks isAdmin flag.
  * Attaches decoded payload to req.admin.
  */
+/**
+ * optionalVerifyToken — if a valid Bearer token is present, decodes it and
+ * sets req.user. If no token or invalid token, the request continues without
+ * req.user (the endpoint stays public).
+ */
+export const optionalVerifyToken = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return next(); // no token — continue as unauthenticated
+    }
+
+    const token = authHeader.split(" ")[1];
+    try {
+        req.user = jwt.verify(token, process.env.SECRET_KEY);
+    } catch (_err) {
+        // invalid/expired token — continue without req.user
+    }
+    next();
+};
+
 export const verifyAdmin = (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {

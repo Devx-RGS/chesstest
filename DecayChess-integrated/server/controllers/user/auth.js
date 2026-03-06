@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import UserModel from "../../models/user.model.js";
+import { awardCoins, hasDailyLoginToday } from "../../services/coinService.js";
 
 dotenv.config();
 const SECRET_KEY = process.env.SECRET_KEY;
@@ -69,6 +70,18 @@ export const loginUser = async (req, res) => {
 
       const token = jwt.sign({ userId: user._id, isAdmin: user.isAdmin || false }, SECRET_KEY, { expiresIn: "1d" });
 
+      // Award daily login coin (fire-and-forget, don't block login)
+      let coinAwarded = false;
+      try {
+          const alreadyAwarded = await hasDailyLoginToday(user._id);
+          if (!alreadyAwarded) {
+              await awardCoins(user._id, 1, "daily_login");
+              coinAwarded = true;
+          }
+      } catch (coinErr) {
+          console.warn("[Auth] Daily login coin failed:", coinErr);
+      }
+
       // Return the token and accountType in the response
       return res.status(200).json({
         token,
@@ -78,6 +91,7 @@ export const loginUser = async (req, res) => {
             email: user.email,
             isAdmin: user.isAdmin || false,
         },
+        coinAwarded,
       });
   } catch (error) {
     console.error("Error during login:", error);

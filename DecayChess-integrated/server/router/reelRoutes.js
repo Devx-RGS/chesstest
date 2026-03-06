@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { verifyToken } from "../middlewares/auth.middleware.js";
+import { verifyToken, optionalVerifyToken } from "../middlewares/auth.middleware.js";
 import {
     getFeed,
     getRandomReels,
@@ -43,8 +43,8 @@ router.get("/:reelId/stats", getReelStats);
 // GET /reels/:reelId/comments - Get all comments for a reel
 router.get("/:reelId/comments", getCommentsByReel);
 
-// POST /reels/:reelId/view - Record a view
-router.post("/:reelId/view", viewReel);
+// POST /reels/:reelId/view - Record a view (optional auth for coin rewards)
+router.post("/:reelId/view", optionalVerifyToken, viewReel);
 
 // GET /reels/liked - Get all reels liked by current user
 router.get("/liked", verifyToken, getUserLikedReels);

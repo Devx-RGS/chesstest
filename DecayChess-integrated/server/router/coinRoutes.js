@@ -5,12 +5,16 @@ import {
     getHistory,
     spendCoins,
     checkInteractiveAccess,
+    getDailyTasks,
 } from "../controllers/coinController.js";
 
 const router = Router();
 
 // GET /coins/balance - Get current balance + totals
 router.get("/balance", verifyToken, getBalance);
+
+// GET /coins/daily-tasks - Get daily task progress
+router.get("/daily-tasks", verifyToken, getDailyTasks);
 
 // GET /coins/history - Paginated transaction history
 router.get("/history", verifyToken, getHistory);

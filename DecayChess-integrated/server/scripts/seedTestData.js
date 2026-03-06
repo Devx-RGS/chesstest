@@ -30,6 +30,7 @@ const TEST_USERS = [
     { name: "Admin",      email: "admin@decaychess.com",  password: "admin123",  isAdmin: true },
     { name: "Alice",      email: "alice@test.com",        password: "test1234",  isAdmin: false },
     { name: "Bob",        email: "bob@test.com",          password: "test1234",  isAdmin: false },
+    { name: "xyz",        email: "xyz@test.com",          password: "test1234",  isAdmin: false },
     { name: "Charlie",    email: "charlie@test.com",      password: "test1234",  isAdmin: false },
 ];
 

@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
@@ -16,6 +16,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useFocusEffect } from 'expo-router';
 import Layout from '../components/layout/Layout';
 import { useAuthStore } from '../lib/stores/authStore';
 import { useReelStore } from '../lib/stores/reelStore';
@@ -23,6 +24,7 @@ import { useCoinStore } from '../lib/stores/coinStore';
 import Skeleton from '../components/ui/Skeleton';
 import GlassCard from '../components/ui/GlassCard';
 import GlassButton from '../components/ui/GlassButton';
+import DailyTasks from '../components/profile/DailyTasks';
 import { COLORS, GLASS, SHADOWS, FONTS } from '../lib/styles/base';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -50,8 +52,14 @@ function ProfileContent() {
       duration: 500,
       useNativeDriver: true,
     }).start();
-    fetchBalance(); // Refresh coin balance when profile opens
   }, []);
+
+  // Refresh coin balance every time profile gets focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchBalance();
+    }, [])
+  );
 
   const savedReels = reels.filter((r) => savedReelIds.includes(r._id));
   const likedReels = reels.filter((r) => likedReelsSet.has(r._id));
@@ -169,6 +177,9 @@ function ProfileContent() {
             </View>
           </View>
         </GlassCard>
+
+        {/* Daily Tasks */}
+        <DailyTasks />
 
         {/* Tabs */}
         <View style={styles.tabsContainer}>

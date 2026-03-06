@@ -4,6 +4,8 @@ import {
     awardCoins,
     deductCoins,
     checkAndIncrementPlays,
+    hasDailyLoginToday,
+    reelWatchedCountToday,
     FREE_INTERACTIVE_PLAYS,
     INTERACTIVE_PLAY_COST,
 } from "../services/coinService.js";
@@ -125,5 +127,54 @@ export const checkInteractiveAccess = async (req, res) => {
     } catch (err) {
         console.error("POST /coins/interactive-access - Error:", err);
         res.status(500).json({ error: "Failed to check interactive access", message: err.message });
+    }
+};
+
+/**
+ * GET /coins/daily-tasks
+ * Returns today's daily task progress for the authenticated user.
+ */
+export const getDailyTasks = async (req, res) => {
+    try {
+        const userId = req.user?.userId;
+        if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+        const [loginDone, reelsCount] = await Promise.all([
+            hasDailyLoginToday(userId),
+            reelWatchedCountToday(userId),
+        ]);
+
+        const MAX_REELS_PER_DAY = 5;
+
+        const tasks = [
+            {
+                id: "daily_login",
+                title: "Daily Login",
+                description: "Log in to earn a coin",
+                completed: loginDone,
+                reward: 1,
+                progress: loginDone ? 1 : 0,
+                total: 1,
+            },
+            {
+                id: "watch_reels",
+                title: "Watch Reels",
+                description: `Watch ${MAX_REELS_PER_DAY} reels to earn coins`,
+                completed: reelsCount >= MAX_REELS_PER_DAY,
+                reward: 1,
+                progress: Math.min(reelsCount, MAX_REELS_PER_DAY),
+                total: MAX_REELS_PER_DAY,
+            },
+        ];
+
+        const totalEarned = tasks.reduce(
+            (sum, t) => sum + (t.id === "watch_reels" ? Math.min(reelsCount, MAX_REELS_PER_DAY) * t.reward : t.completed ? t.reward : 0),
+            0
+        );
+
+        res.json({ tasks, totalEarned });
+    } catch (err) {
+        console.error("GET /coins/daily-tasks - Error:", err);
+        res.status(500).json({ error: "Failed to fetch daily tasks", message: err.message });
     }
 };

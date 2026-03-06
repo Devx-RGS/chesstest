@@ -1,4 +1,4 @@
-// Glassmorphism Login — Updated 2026-02-27
+// Glassmorphism Login — Updated 2026-03-05
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
@@ -10,6 +10,7 @@ import { useAuthStore } from "../lib/stores/authStore";
 import Skeleton from "../components/ui/Skeleton";
 import GlassCard from "../components/ui/GlassCard";
 import GlassButton from "../components/ui/GlassButton";
+import CoinRewardPopup from "../components/ui/CoinRewardPopup";
 import { COLORS, GLASS, SHADOWS, FONTS } from "../lib/styles/base";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -20,6 +21,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showCoinPopup, setShowCoinPopup] = useState(false);
   const router = useRouter();
 
   const handleInputChange = (setter: (val: string) => void) => (value: string) => {
@@ -80,7 +82,18 @@ export default function Login() {
           data.user.isAdmin || data.isAdmin || false,
         );
         shouldResetLoading = false;
-        router.replace('/(main)/choose');
+
+        // Show coin popup if daily login coin was awarded
+        console.log('[Login] coinAwarded:', data.coinAwarded);
+        if (data.coinAwarded) {
+          setIsLoading(false); // hide loading overlay so popup is visible
+          setShowCoinPopup(true);
+          setTimeout(() => {
+            router.replace('/(main)/choose');
+          }, 2600);
+        } else {
+          router.replace('/(main)/choose');
+        }
       } else {
         setErrorMessage(result.error || 'Login failed. Please try again.');
       }
@@ -199,6 +212,14 @@ export default function Login() {
           </View>
         </View>
       )}
+
+      {/* Coin reward popup — rendered last so it's on top */}
+      <CoinRewardPopup
+        visible={showCoinPopup}
+        message="Daily login reward!"
+        amount={1}
+        onDismiss={() => setShowCoinPopup(false)}
+      />
     </SafeAreaView>
   );
 }
