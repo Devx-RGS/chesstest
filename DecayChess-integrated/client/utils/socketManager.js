@@ -1,5 +1,5 @@
 import { io } from "socket.io-client";
-import { WS_BASE_URL } from "../app/lib/constants";
+import { WS_BASE_URL } from "../app/_lib/constants";
 
 let socketInstance = null;
 

@@ -7,9 +7,9 @@ import type { Socket } from "socket.io-client";
 import { ClassicChess, CrazyHouseChess, DecayChess } from '../(game)/variants';
 import SixPointerChessGame from '../(game)/variants/six-pointer';
 import { getSocket } from '../../utils/socketManager';
-import { fetchTournamentLeaderboard } from '../lib/APIservice/service';
-import { streakMasterScreenStyles } from '../lib/styles/screens';
-import { GameState } from '../lib/types/gamestate';
+import { fetchTournamentLeaderboard } from '../_lib/APIservice/service';
+import { streakMasterScreenStyles } from '../_lib/styles/screens';
+import { GameState } from '../_lib/types/gamestate';
 
 export default function StreakMasterScreen() {
   const router = useRouter();

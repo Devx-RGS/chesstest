@@ -8,7 +8,7 @@ import CrazyHouseChess from "../(game)/variants/crazy-house";
 import DecayChess from "../(game)/variants/decay";
 import SixPointerChess from "../(game)/variants/six-pointer";
 import { getSocket, getSocketInstance } from "../../utils/socketManager";
-import { GameState } from "../lib/types/gamestate"; // Import GameState type
+import { GameState } from "../_lib/types/gamestate"; // Import GameState type
 import { usePreventRemove } from "@react-navigation/native";
 // Re-use the GameState interface or import it if defined in a shared file
 

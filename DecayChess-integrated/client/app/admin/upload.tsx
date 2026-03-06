@@ -16,10 +16,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
-import { AdminAuthGuard } from "../components/admin/AdminAuthGuard";
-import { usePostReel, PostReelData, useGrandmasterFolders } from "../lib/services/adminApi";
-import { axiosClient } from "../lib/services/axiosClient";
-import { FONTS } from "../lib/styles/base";
+import { AdminAuthGuard } from "../_components/admin/AdminAuthGuard";
+import { usePostReel, PostReelData, useGrandmasterFolders } from "../_lib/services/adminApi";
+import { axiosClient } from "../_lib/services/axiosClient";
+import { FONTS } from "../_lib/styles/base";
 
 type UploadMode = "local" | "url";
 

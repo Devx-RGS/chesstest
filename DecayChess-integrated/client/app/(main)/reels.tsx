@@ -15,8 +15,8 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { ReelCard } from "../components/reels/ReelCard";
-import { CommentSheet } from "../components/reels/CommentSheet";
+import { ReelCard } from "../_components/reels/ReelCard";
+import { CommentSheet } from "../_components/reels/CommentSheet";
 import {
     useRandomReels,
     useAvailableGrandmasters,
@@ -27,11 +27,11 @@ import {
     useSaveReel,
     useRecordView,
     GrandmasterItem,
-} from "../lib/services/reelApi";
-import { useReelStore } from "../lib/stores/reelStore";
-import { useAuthStore } from "../lib/stores/authStore";
-import { Reel } from "../lib/types/reel";
-import { FONTS } from "../lib/styles/base";
+} from "../_lib/services/reelApi";
+import { useReelStore } from "../_lib/stores/reelStore";
+import { useAuthStore } from "../_lib/stores/authStore";
+import { Reel } from "../_lib/types/reel";
+import { FONTS } from "../_lib/styles/base";
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -80,12 +80,28 @@ export default function ReelsScreen() {
     const saveMutation = useSaveReel();
     const viewMutation = useRecordView();
 
+    // Track the last server-synced liked/saved IDs to avoid overwriting optimistic state
+    const lastSyncedLikedRef = useRef<string | null>(null);
+    const lastSyncedSavedRef = useRef<string | null>(null);
+
     useEffect(() => {
-        if (likedIds) initLiked(likedIds);
+        if (likedIds) {
+            const key = JSON.stringify(likedIds.slice().sort());
+            if (lastSyncedLikedRef.current !== key) {
+                lastSyncedLikedRef.current = key;
+                initLiked(likedIds);
+            }
+        }
     }, [likedIds]);
 
     useEffect(() => {
-        if (savedIds) initSaved(savedIds);
+        if (savedIds) {
+            const key = JSON.stringify(savedIds.slice().sort());
+            if (lastSyncedSavedRef.current !== key) {
+                lastSyncedSavedRef.current = key;
+                initSaved(savedIds);
+            }
+        }
     }, [savedIds]);
 
     // Determine which reels to show based on active tab

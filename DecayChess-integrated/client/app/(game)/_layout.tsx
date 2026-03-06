@@ -2,7 +2,7 @@ import { Stack } from "expo-router";
 import React from "react";
 import { ActivityIndicator, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRequireAuth } from "../lib/hooks/useRequireAuth";
+import { useRequireAuth } from "../_lib/hooks/useRequireAuth";
 import { StatusBar } from "expo-status-bar";
 
 export default function GameLayout() {

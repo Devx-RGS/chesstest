@@ -3,9 +3,9 @@ import { Animated, StyleSheet, Text, TouchableOpacity, View, ScrollView } from '
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
-import Layout from '../components/layout/Layout'
-import GlassCard from '../components/ui/GlassCard'
-import { COLORS, GLASS, SHADOWS, SPACING } from '../lib/styles/base'
+import Layout from '../_components/layout/Layout'
+import GlassCard from '../_components/ui/GlassCard'
+import { COLORS, GLASS, SHADOWS, SPACING } from '../_lib/styles/base'
 
 const timeControls = [
   { key: 'bullet', label: 'Bullet', description: '1+0 (1 min, no increment)', icon: 'flash-outline' as const, baseTime: 60000, increment: 0 },

@@ -4,9 +4,9 @@ import { useLocalSearchParams, useRouter } from "expo-router"
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import { Alert, Dimensions, Modal, ScrollView, Text, TouchableOpacity, View } from "react-native"
 import { Chess } from "chess.js"
-import Layout from "../components/layout/Layout"
-import { variantStyles } from "@/app/lib/styles"
-import { getPieceComponent } from "../components/game/chessPieces"
+import Layout from "../_components/layout/Layout"
+import { variantStyles, COLORS } from "@/app/_lib/styles"
+import { getPieceComponent } from "../_components/game/chessPieces"
 
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"]
 const RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"]
@@ -276,27 +276,27 @@ export default function ClassicOffline() {
 
     let borderColor = "transparent"
     let borderWidth = 0
-    if (isPossibleMove && piece) { borderColor = '#dc2626'; borderWidth = 2 }
-    else if (isPossibleMove) { borderColor = '#16a34a'; borderWidth = 2 }
-    else if (isSelected) { borderColor = '#2563eb'; borderWidth = 2 }
-    else if (isLastMove) { borderColor = '#f59e0b'; borderWidth = 1 }
+    if (isPossibleMove && piece) { borderColor = COLORS.red; borderWidth = 2 }
+    else if (isPossibleMove) { borderColor = COLORS.accent; borderWidth = 2 }
+    else if (isSelected) { borderColor = COLORS.blue; borderWidth = 2 }
+    else if (isLastMove) { borderColor = COLORS.yellow; borderWidth = 1 }
 
     return (
       <View key={square} style={{ position: 'relative' }}>
         <TouchableOpacity
           style={[
             variantStyles.square,
-            { width: squareSize, height: squareSize, backgroundColor: isLight ? '#F0D9B5' : '#769656', borderWidth, borderColor },
+            { width: squareSize, height: squareSize, backgroundColor: isLight ? COLORS.lightSquare : COLORS.darkSquare, borderWidth, borderColor },
           ]}
           onPress={() => handleSquarePress(square)}
         >
           {file === 'a' && (
-            <Text style={[variantStyles.coordinateLabel, variantStyles.rankLabel, { color: isLight ? '#769656' : '#F0D9B5', fontSize: coordinateFontSize }]}>
+            <Text style={[variantStyles.coordinateLabel, variantStyles.rankLabel, { color: isLight ? COLORS.darkSquare : COLORS.lightSquare, fontSize: coordinateFontSize }]}>
               {rank}
             </Text>
           )}
           {rank === '1' && (
-            <Text style={[variantStyles.coordinateLabel, variantStyles.fileLabel, { color: isLight ? '#769656' : '#F0D9B5', fontSize: coordinateFontSize }]}>
+            <Text style={[variantStyles.coordinateLabel, variantStyles.fileLabel, { color: isLight ? COLORS.darkSquare : COLORS.lightSquare, fontSize: coordinateFontSize }]}>
               {file}
             </Text>
           )}

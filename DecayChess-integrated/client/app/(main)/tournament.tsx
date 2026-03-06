@@ -22,10 +22,10 @@ import DecayChess from "../(game)/variants/decay"
 import SixPointerChess from "../(game)/variants/six-pointer"
 import { setNavigationVisibility } from "../../utils/navigationState"
 import { getSocket } from "../../utils/socketManager"
-import VariantCard from "../components/ui/VariantCard"
-import { tournamentScreenStyles } from "../lib/styles/screens"
-import { GameState } from "../lib/types/gamestate"
-import { TournamentDetails} from "../lib/types/miscellaneous"
+import VariantCard from "../_components/ui/VariantCard"
+import { tournamentScreenStyles } from "../_lib/styles/screens"
+import { GameState } from "../_lib/types/gamestate"
+import { TournamentDetails} from "../_lib/types/miscellaneous"
 
 
 export default function TournamentScreen() {

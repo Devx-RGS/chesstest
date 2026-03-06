@@ -9,9 +9,9 @@ import {
   View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { fetchLeaderboardData } from "../lib/APIservice/service";
-import { leaderboardScreenStyles } from "../lib/styles/screens";
-import { Player } from "../lib/types/miscellaneous";
+import { fetchLeaderboardData } from "../_lib/APIservice/service";
+import { leaderboardScreenStyles } from "../_lib/styles/screens";
+import { Player } from "../_lib/types/miscellaneous";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 

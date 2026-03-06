@@ -1,16 +1,16 @@
 "use client"
 
-import { getPieceComponent, ChessBoard, type DragState } from "@/app/components"
+import { getPieceComponent, ChessBoard, type DragState } from "@/app/_components"
 import { getSocketInstance } from "@/utils/socketManager"
 import { useRouter } from "expo-router"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Alert, Dimensions, Modal, PanResponder, ScrollView, Text, TouchableOpacity, View } from "react-native"
 import type { Socket } from "socket.io-client"
 import { Chess } from "chess.js"
-import { sixPointerStyles, variantStyles } from "@/app/lib/styles"
-import { BOARD_THEME } from "@/app/lib/constants/boardTheme"
-import { usePreventEarlyExit } from "@/app/lib/hooks/usePreventEarlyExit"
-import type { Move, GameState, SixPointerChessGameProps } from "@/app/lib/types/sixpointer"
+import { sixPointerStyles, variantStyles } from "@/app/_lib/styles"
+import { BOARD_THEME } from "@/app/_lib/constants/boardTheme"
+import { usePreventEarlyExit } from "@/app/_lib/hooks/usePreventEarlyExit"
+import type { Move, GameState, SixPointerChessGameProps } from "@/app/_lib/types/sixpointer"
 
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"]
 const RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"]

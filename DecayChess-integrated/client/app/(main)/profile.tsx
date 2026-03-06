@@ -17,15 +17,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from 'expo-router';
-import Layout from '../components/layout/Layout';
-import { useAuthStore } from '../lib/stores/authStore';
-import { useReelStore } from '../lib/stores/reelStore';
-import { useCoinStore } from '../lib/stores/coinStore';
-import Skeleton from '../components/ui/Skeleton';
-import GlassCard from '../components/ui/GlassCard';
-import GlassButton from '../components/ui/GlassButton';
-import DailyTasks from '../components/profile/DailyTasks';
-import { COLORS, GLASS, SHADOWS, FONTS } from '../lib/styles/base';
+import Layout from '../_components/layout/Layout';
+import { useAuthStore } from '../_lib/stores/authStore';
+import { useReelStore } from '../_lib/stores/reelStore';
+import { useCoinStore } from '../_lib/stores/coinStore';
+import Skeleton from '../_components/ui/Skeleton';
+import GlassCard from '../_components/ui/GlassCard';
+import GlassButton from '../_components/ui/GlassButton';
+import DailyTasks from '../_components/profile/DailyTasks';
+import { COLORS, GLASS, SHADOWS, FONTS } from '../_lib/styles/base';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 

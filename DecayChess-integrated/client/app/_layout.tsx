@@ -4,10 +4,10 @@ import * as SplashScreen from "expo-splash-screen";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "./lib/services/apiClient";
+import { queryClient } from "./_lib/services/apiClient";
 import "./styles/globals.css";
-import AnimatedSplash from "./components/ui/AnimatedSplash";
-import EngineService from "./lib/services/EngineService";
+import AnimatedSplash from "./_components/ui/AnimatedSplash";
+import EngineService from "./_lib/services/EngineService";
 import {
   useFonts,
   Inter_400Regular,

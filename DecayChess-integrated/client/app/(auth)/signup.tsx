@@ -4,11 +4,11 @@ import React, { useState } from "react";
 import { ActivityIndicator, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from 'expo-linear-gradient';
-import { registerUser } from "../lib/APIservice/service";
-import { useAuthStore } from "../lib/stores/authStore";
-import GlassCard from "../components/ui/GlassCard";
-import GlassButton from "../components/ui/GlassButton";
-import { COLORS, GLASS, FONTS } from "../lib/styles/base";
+import { registerUser } from "../_lib/APIservice/service";
+import { useAuthStore } from "../_lib/stores/authStore";
+import GlassCard from "../_components/ui/GlassCard";
+import GlassButton from "../_components/ui/GlassButton";
+import { COLORS, GLASS, FONTS } from "../_lib/styles/base";
 import { Ionicons } from "@expo/vector-icons";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

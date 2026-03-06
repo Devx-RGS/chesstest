@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useAuthStore } from "../lib/stores/authStore";
+import { useAuthStore } from "../_lib/stores/authStore";
 
 export default function AdminLoginScreen() {
     const [email, setEmail] = useState("admin@decaychess.com");

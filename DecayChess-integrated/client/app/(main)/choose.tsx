@@ -16,13 +16,13 @@ import {
 } from "react-native";
 import type { ScrollViewProps } from "react-native";
 import { shouldHideNavigation } from "../../utils/navigationState";
-import Layout from '../components/layout/Layout';
-import DecayShowcase from '../components/ui/DecayShowcase';
-import VariantCard from '../components/ui/VariantCard';
-import Skeleton from "../components/ui/Skeleton";
-import GlassButton from '../components/ui/GlassButton';
+import Layout from '../_components/layout/Layout';
+import DecayShowcase from '../_components/ui/DecayShowcase';
+import VariantCard from '../_components/ui/VariantCard';
+import Skeleton from "../_components/ui/Skeleton";
+import GlassButton from '../_components/ui/GlassButton';
 import TournamentScreen from "./tournament";
-import { chooseScreenStyles } from "../lib/styles/screens";
+import { chooseScreenStyles } from "../_lib/styles/screens";
 
 const isIOS = Platform.OS === "ios";
 const isAndroid = Platform.OS === "android";

@@ -1,6 +1,6 @@
 import React from 'react'
 import { ScrollView, Text, View } from 'react-native'
-import Layout from '../components/layout/Layout'
+import Layout from '../_components/layout/Layout'
 import { useRouter } from 'expo-router'
 
 export default function NewsletterPage() {

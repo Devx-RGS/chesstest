@@ -15,9 +15,9 @@ import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import { AdminAuthGuard } from "../components/admin/AdminAuthGuard";
-import { useAdminReels, useUpdateReel, useGrandmasterFolders, PostReelData } from "../lib/services/adminApi";
-import { FONTS } from "../lib/styles/base";
+import { AdminAuthGuard } from "../_components/admin/AdminAuthGuard";
+import { useAdminReels, useUpdateReel, useGrandmasterFolders, PostReelData } from "../_lib/services/adminApi";
+import { FONTS } from "../_lib/styles/base";
 
 function EditContent() {
     const { reelId } = useLocalSearchParams<{ reelId: string }>();

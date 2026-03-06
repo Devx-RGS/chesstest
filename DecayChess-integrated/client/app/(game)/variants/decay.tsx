@@ -1,6 +1,6 @@
 "use client"
 
-import { getPieceComponent, ChessBoard, type DragState, createDecayTimerOverlay, createFrozenOverlay } from "@/app/components"
+import { getPieceComponent, ChessBoard, type DragState, createDecayTimerOverlay, createFrozenOverlay } from "@/app/_components"
 import { getSocketInstance } from "@/utils/socketManager"
 import { useRouter } from "expo-router"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -8,11 +8,11 @@ import { Alert, Dimensions, FlatList, Modal, PanResponder, ScrollView, Text, Tou
 import { unstable_batchedUpdates } from "react-native"
 import type { Socket } from "socket.io-client"
 import { Chess } from "chess.js"
-import { decayStyles, variantStyles } from "@/app/lib/styles"
-import { BOARD_THEME } from "@/app/lib/constants/boardTheme"
-import { DecayChessGameProps, GameState, DecayState, Move } from "@/app/lib/types/decay"
-import { usePreventEarlyExit } from "@/app/lib/hooks/usePreventEarlyExit"
-import type { SquareOverlay } from "@/app/components"
+import { decayStyles, variantStyles } from "@/app/_lib/styles"
+import { BOARD_THEME } from "@/app/_lib/constants/boardTheme"
+import { DecayChessGameProps, GameState, DecayState, Move } from "@/app/_lib/types/decay"
+import { usePreventEarlyExit } from "@/app/_lib/hooks/usePreventEarlyExit"
+import type { SquareOverlay } from "@/app/_components"
 const screenWidth = Dimensions.get("window").width
 const screenHeight = Dimensions.get("window").height
 const isTablet = Math.min(screenWidth, screenHeight) > 600

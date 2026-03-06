@@ -6,11 +6,11 @@ import { Alert, Dimensions, Modal, PanResponder, ScrollView, Text, TouchableOpac
 import type { Socket } from "socket.io-client"
 import { Chess } from "chess.js"
 import { getSocketInstance } from "../../../utils/socketManager"
-import { getPieceComponent, ChessBoard, type DragState } from "@/app/components"
-import { variantStyles } from "@/app/lib/styles"
-import { BOARD_THEME } from "@/app/lib/constants/boardTheme"
-import { usePreventEarlyExit } from "@/app/lib/hooks/usePreventEarlyExit"
-import { Move, GameState, ChessGameProps} from "../../lib/types/classic"
+import { getPieceComponent, ChessBoard, type DragState } from "@/app/_components"
+import { variantStyles } from "@/app/_lib/styles"
+import { BOARD_THEME } from "@/app/_lib/constants/boardTheme"
+import { usePreventEarlyExit } from "@/app/_lib/hooks/usePreventEarlyExit"
+import { Move, GameState, ChessGameProps} from "../../_lib/types/classic"
 
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"]
 const RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"]

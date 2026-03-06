@@ -2,8 +2,8 @@ import { Stack } from "expo-router";
 import React, { useEffect } from "react";
 import { ActivityIndicator, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRequireAuth } from "../lib/hooks/useRequireAuth";
-import { useCoinStore } from "../lib/stores/coinStore";
+import { useRequireAuth } from "../_lib/hooks/useRequireAuth";
+import { useCoinStore } from "../_lib/stores/coinStore";
 import { StatusBar } from "expo-status-bar";
 
 export default function MainLayout() {

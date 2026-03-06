@@ -14,12 +14,12 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { AdminAuthGuard } from "../components/admin/AdminAuthGuard";
-import { useAdminReels, useAdminStats, useDeleteReel, useGrandmasterFolders, useCreateGrandmaster } from "../lib/services/adminApi";
-import { useAuthStore } from "../lib/stores/authStore";
-import { Reel } from "../lib/types/reel";
-import { formatCount } from "../lib/services/reelApi";
-import { FONTS } from "../lib/styles/base";
+import { AdminAuthGuard } from "../_components/admin/AdminAuthGuard";
+import { useAdminReels, useAdminStats, useDeleteReel, useGrandmasterFolders, useCreateGrandmaster } from "../_lib/services/adminApi";
+import { useAuthStore } from "../_lib/stores/authStore";
+import { Reel } from "../_lib/types/reel";
+import { formatCount } from "../_lib/services/reelApi";
+import { FONTS } from "../_lib/styles/base";
 
 function DashboardContent() {
     const { data: reels = [], isLoading: reelsLoading, isError: reelsError, error: reelsErrorObj, refetch: refetchReels } = useAdminReels();

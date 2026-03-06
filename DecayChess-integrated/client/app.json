@@ -4,6 +4,7 @@
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "automatic",
     "slug": "chess",
+    "scheme": "decaychess",
     "version": "1.0.0",
     "sdkVersion": "53.0.0",
     "platforms": [
