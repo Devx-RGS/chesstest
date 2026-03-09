@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Socket } from "socket.io-client";
 
@@ -10,6 +10,7 @@ import { getSocket } from '../../utils/socketManager';
 import { fetchTournamentLeaderboard } from '../_lib/APIservice/service';
 import { streakMasterScreenStyles } from '../_lib/styles/screens';
 import { GameState } from '../_lib/types/gamestate';
+import ChessPieceLoader from '../_components/ui/ChessPieceLoader';
 
 export default function StreakMasterScreen() {
   const router = useRouter();
@@ -272,6 +273,17 @@ export default function StreakMasterScreen() {
         style={streakMasterScreenStyles.scrollView} 
         contentContainerStyle={streakMasterScreenStyles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={false}
+            onRefresh={fetchLeaderboard}
+            tintColor="transparent"
+            colors={['transparent']}
+            progressViewOffset={-10000}
+            progressBackgroundColor="transparent"
+            style={{ backgroundColor: 'transparent' }}
+          />
+        }
       >
         {/* Header */}
         <View style={streakMasterScreenStyles.header}>

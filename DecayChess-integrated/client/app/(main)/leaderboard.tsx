@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { fetchLeaderboardData } from "../_lib/APIservice/service";
 import { leaderboardScreenStyles } from "../_lib/styles/screens";
 import { Player } from "../_lib/types/miscellaneous";
+import ChessPieceLoader from '../_components/ui/ChessPieceLoader';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -103,11 +104,19 @@ export default function Leaderboard() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              colors={['#F5A623']}
-              tintColor="#F5A623"
+              tintColor="transparent"
+              colors={['transparent']}
+              progressViewOffset={-10000}
+              progressBackgroundColor="transparent"
+              style={{ backgroundColor: 'transparent' }}
             />
           }
         >
+          {refreshing && (
+            <View style={{ alignItems: 'center', marginBottom: 12 }}>
+              <ChessPieceLoader size={34} />
+            </View>
+          )}
 
           {/* Full Rankings */}
           <View style={leaderboardScreenStyles.fullRankingsContainer}>

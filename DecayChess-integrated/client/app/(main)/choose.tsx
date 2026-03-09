@@ -22,6 +22,7 @@ import VariantCard from '../_components/ui/VariantCard';
 import Skeleton from "../_components/ui/Skeleton";
 import GlassButton from '../_components/ui/GlassButton';
 import TournamentScreen from "./tournament";
+import ChessPieceLoader from '../_components/ui/ChessPieceLoader';
 import { chooseScreenStyles } from "../_lib/styles/screens";
 
 const isIOS = Platform.OS === "ios";
@@ -66,7 +67,8 @@ export default function Choose() {
         "If the timer expires, the queen freezes and cannot be moved again.",
         "After your queen freezes, the next major piece you move starts a 20s Decay Timer with the same behavior.",
       ],
-      color: "#111629"
+      accentColor: "#F5A623",
+      icon: "flame-outline",
     },
     {
       name: "sixpointer",
@@ -83,7 +85,8 @@ export default function Choose() {
         "Foul play: if you capture on your 6th move and opponent has an immediate legal recapture but no moves left, it counts as foul play.",
         "Tie on points: Draw.",
       ],
-      color: "#111629"
+      accentColor: "#4FC3F7",
+      icon: "analytics-outline",
     },
     {
       name: "crazyhouse",
@@ -96,7 +99,8 @@ export default function Choose() {
         "Pawns cannot be dropped on the 1st or 8th ranks.",
         "With Timer subvariant: each captured piece must be dropped within 10s on your turn or it disappears.",
       ],
-      color: "#111629"
+      accentColor: "#AB47BC",
+      icon: "shuffle-outline",
     },
     {
       name: "classic",
@@ -107,7 +111,8 @@ export default function Choose() {
         "Flagging: main clock expires → loss on time.",
         "Illegal moves follow standard chess penalties.",
       ],
-      color: "#111629"
+      accentColor: "#66BB6A",
+      icon: "shield-outline",
     },
   ];
 
@@ -254,9 +259,10 @@ export default function Choose() {
         refreshing={refreshing}
         onRefresh={handleRefresh}
         enabled={!refreshing}
-        tintColor="#F5A623"
-        colors={["#F5A623"]}
-        progressViewOffset={24}
+        tintColor="transparent"
+        colors={['transparent']}
+        progressViewOffset={-10000}
+        progressBackgroundColor="transparent"
       />
     );
   }, [handleRefresh, refreshing]);
@@ -378,6 +384,12 @@ export default function Choose() {
             contentContainerStyle={chooseScreenStyles.scrollViewContent}
             refreshControl={refreshControl}
           >
+            {/* Chess piece refresh indicator */}
+            {refreshing && (
+              <View style={{ alignItems: 'center', marginBottom: 12 }}>
+                <ChessPieceLoader size={34} />
+              </View>
+            )}
             {/* Navigation Buttons */}
             <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
               <GlassButton
@@ -431,6 +443,8 @@ export default function Choose() {
                   activePlayers={livePlayers[variant.name as keyof typeof livePlayers] ?? 0}
                   onPlay={() => handleVariantSelect(variant.name)}
                   disabled={userId ? false : true}
+                  accentColor={variant.accentColor}
+                  icon={variant.icon}
                 />
               ))}
             </View>

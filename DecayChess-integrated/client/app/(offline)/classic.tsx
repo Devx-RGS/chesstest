@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router"
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import { Alert, Dimensions, Modal, ScrollView, Text, TouchableOpacity, View } from "react-native"
 import { Chess } from "chess.js"
+import type { Square } from "chess.js"
 import Layout from "../_components/layout/Layout"
 import { variantStyles, COLORS } from "@/app/_lib/styles"
 import { getPieceComponent } from "../_components/game/chessPieces"
@@ -149,7 +150,7 @@ export default function ClassicOffline() {
     if (piece && isPieceOwnedBy(piece, activeColor)) {
       setSelectedSquare(square)
       try {
-        const moves = game.moves({ square, verbose: true }) as any[]
+        const moves = game.moves({ square: square as Square, verbose: true }) as any[]
         setPossibleMoves(moves.map((m) => m.to))
       } catch {
         setPossibleMoves([])

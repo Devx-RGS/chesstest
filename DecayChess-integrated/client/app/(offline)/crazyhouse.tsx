@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router"
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import { Alert, Dimensions, Modal, ScrollView, Text, TouchableOpacity, View, StyleSheet } from "react-native"
 import { Chess } from "chess.js"
+import type { Square } from "chess.js"
 import Layout from "../_components/layout/Layout"
 import { variantStyles, COLORS } from "@/app/_lib/styles"
 import { getPieceComponent } from "../_components/game/chessPieces"
@@ -189,7 +190,7 @@ export default function CrazyhouseOffline() {
     // Validate with test game
     const test = new Chess(game.fen())
     try {
-      test.put({ type: first.type as any, color: activeColor === 'white' ? 'w' : 'b' }, to)
+      test.put({ type: first.type as any, color: activeColor === 'white' ? 'w' : 'b' }, to as Square)
       // Toggle turn manually
       const parts = test.fen().split(' ')
       parts[1] = parts[1] === 'w' ? 'b' : 'w'
@@ -205,7 +206,7 @@ export default function CrazyhouseOffline() {
 
     // Apply to actual game
     const newGame = new Chess(game.fen())
-    newGame.put({ type: first.type as any, color: activeColor === 'white' ? 'w' : 'b' }, to)
+    newGame.put({ type: first.type as any, color: activeColor === 'white' ? 'w' : 'b' }, to as Square)
     const parts = newGame.fen().split(' ')
     parts[1] = parts[1] === 'w' ? 'b' : 'w'
     newGame.load(parts.join(' '))
@@ -271,7 +272,7 @@ export default function CrazyhouseOffline() {
     if (piece && isPieceOwnedBy(piece, activeColor)) {
       setSelectedSquare(square)
       try {
-        const moves = game.moves({ square, verbose: true }) as any[]
+        const moves = game.moves({ square: square as Square, verbose: true }) as any[]
         setPossibleMoves(moves.map((m) => m.to))
       } catch {
         setPossibleMoves([])
@@ -287,7 +288,7 @@ export default function CrazyhouseOffline() {
     // Offline simple mode: do not adjust time on move; timers tick only during turn via interval
 
     const newGame = new Chess(game.fen())
-    const targetPiece = newGame.get(m.to)
+    const targetPiece = newGame.get(m.to as Square)
     let result
     try {
       result = newGame.move(m)

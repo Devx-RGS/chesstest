@@ -7,6 +7,7 @@ import {
   Dimensions,
   Image,
   Platform,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -25,6 +26,7 @@ import Skeleton from '../_components/ui/Skeleton';
 import GlassCard from '../_components/ui/GlassCard';
 import GlassButton from '../_components/ui/GlassButton';
 import DailyTasks from '../_components/profile/DailyTasks';
+import ChessPieceLoader from '../_components/ui/ChessPieceLoader';
 import { COLORS, GLASS, SHADOWS, FONTS } from '../_lib/styles/base';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -96,8 +98,37 @@ function ProfileContent() {
     ]);
   };
 
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await fetchBalance();
+    } catch { }
+    setRefreshing(false);
+  }, [fetchBalance]);
+
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.container}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor="transparent"
+          colors={['transparent']}
+          progressViewOffset={-10000}
+          progressBackgroundColor="transparent"
+          style={{ backgroundColor: 'transparent' }}
+        />
+      }
+    >
+      {refreshing && (
+        <View style={{ alignItems: 'center', marginBottom: 12 }}>
+          <ChessPieceLoader size={34} />
+        </View>
+      )}
       <Animated.View style={{ opacity: fadeAnim }}>
         {/* Header */}
         <View style={styles.header}>

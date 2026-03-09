@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
-import { Animated, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
 import { COLORS, GLASS, SHADOWS, FONTS } from '../../_lib/styles/base';
 import GlassCard from './GlassCard';
-import GlassButton from './GlassButton';
 
 interface VariantCardProps {
   variantName: string;
@@ -16,6 +14,8 @@ interface VariantCardProps {
   disabled: boolean;
   subtitle?: string;
   rulesItems?: string[];
+  accentColor?: string;
+  icon?: string;
 }
 
 export default function VariantCard({
@@ -27,6 +27,8 @@ export default function VariantCard({
   disabled,
   subtitle,
   rulesItems = [],
+  accentColor = COLORS.accent,
+  icon,
 }: VariantCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const pulseAnim = React.useRef(new Animated.Value(1)).current;
@@ -64,77 +66,92 @@ export default function VariantCard({
     Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
   };
 
-
-
   return (
     <Animated.View style={[{ transform: [{ scale: scaleAnim }], marginBottom: 14 }]}>
       <GlassCard elevated noPadding intensity={25}>
-        <View style={styles.cardContent}>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.titleSection}>
-              <Text style={styles.variantName}>{variantName}</Text>
-              {!!subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
-              {closingTime && (
-                <Text style={styles.closingTime}>Closing at {closingTime}</Text>
-              )}
-            </View>
-            <GlassButton
-              label="PLAY"
-              onPress={onPlay}
-              disabled={disabled}
-              style={{ height: 40, paddingHorizontal: 16 }}
-              textStyle={{ fontSize: 13, letterSpacing: 1 }}
-            />
-          </View>
+        {/* Left accent strip */}
+        <View style={[styles.accentStrip, { backgroundColor: accentColor }]} />
 
-          {/* Live section */}
-          <View style={styles.liveSection}>
-            <TouchableOpacity style={styles.playerSection} onPress={toggleExpand} activeOpacity={0.7}>
-              <View style={styles.playersInfo}>
-                <Animated.View style={[styles.activeDot, { opacity: pulseAnim }]} />
-                <Text style={styles.playersText}>{activePlayers} live players</Text>
-              </View>
-              <Animated.View
-                style={[
-                  styles.dropdownIcon,
-                  {
-                    transform: [{
-                      rotate: expandAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0deg', '180deg'],
-                      }),
-                    }],
-                  },
-                ]}
-              >
-                <Svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <Path
-                    d="M7 10l5 5 5-5"
-                    stroke={COLORS.mutedText}
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </Svg>
-              </Animated.View>
-            </TouchableOpacity>
-
-            <Animated.View style={[styles.description, { maxHeight }]}>
-              <Text style={styles.descriptionText}>{description}</Text>
-              {rulesItems.length > 0 && (
-                <View style={styles.rulesContainer}>
-                  <Text style={styles.rulesHeading}>Rules</Text>
-                  {rulesItems.map((rule, idx) => (
-                    <View key={idx} style={styles.ruleItem}>
-                      <View style={styles.ruleBullet} />
-                      <Text style={styles.ruleText}>{rule}</Text>
-                    </View>
-                  ))}
+        {/* Whole card is clickable for play */}
+        <TouchableOpacity
+          style={styles.cardTouchable}
+          onPress={onPlay}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          activeOpacity={0.85}
+          disabled={disabled}
+        >
+          <View style={styles.cardContent}>
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.titleRow}>
+                {!!icon && (
+                  <View style={[styles.iconWrap, { backgroundColor: accentColor + '20' }]}>
+                    <Ionicons name={icon as any} size={20} color={accentColor} />
+                  </View>
+                )}
+                <View style={styles.titleSection}>
+                  <Text style={styles.variantName}>{variantName}</Text>
+                  {!!subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+                  {closingTime && (
+                    <Text style={styles.closingTime}>Closing at {closingTime}</Text>
+                  )}
                 </View>
-              )}
-            </Animated.View>
+              </View>
+              {/* Small play icon instead of big button */}
+              <View style={[styles.playCircle, { borderColor: accentColor + '40' }]}>
+                <Ionicons name="play" size={16} color={accentColor} style={{ marginLeft: 2 }} />
+              </View>
+            </View>
           </View>
+        </TouchableOpacity>
+
+        {/* Live section — separate touch target for expand */}
+        <View style={styles.liveSection}>
+          <TouchableOpacity style={styles.playerSection} onPress={toggleExpand} activeOpacity={0.7}>
+            <View style={styles.playersInfo}>
+              <Animated.View style={[styles.activeDot, { opacity: pulseAnim, backgroundColor: accentColor }]} />
+              <Text style={styles.playersText}>{activePlayers} live players</Text>
+            </View>
+            <Animated.View
+              style={[
+                styles.dropdownIcon,
+                {
+                  transform: [{
+                    rotate: expandAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['0deg', '180deg'],
+                    }),
+                  }],
+                },
+              ]}
+            >
+              <Svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M7 10l5 5 5-5"
+                  stroke={COLORS.mutedText}
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
+            </Animated.View>
+          </TouchableOpacity>
+
+          <Animated.View style={[styles.description, { maxHeight }]}>
+            <Text style={styles.descriptionText}>{description}</Text>
+            {rulesItems.length > 0 && (
+              <View style={styles.rulesContainer}>
+                <Text style={styles.rulesHeading}>Rules</Text>
+                {rulesItems.map((rule, idx) => (
+                  <View key={idx} style={styles.ruleItem}>
+                    <View style={[styles.ruleBullet, { backgroundColor: accentColor }]} />
+                    <Text style={styles.ruleText}>{rule}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </Animated.View>
         </View>
       </GlassCard>
     </Animated.View>
@@ -142,59 +159,75 @@ export default function VariantCard({
 }
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: GLASS.borderRadius,
-    marginBottom: 14,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: COLORS.glassBorder,
-    ...SHADOWS.glass,
+  accentStrip: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    borderTopLeftRadius: 18,
+    borderBottomLeftRadius: 18,
+    zIndex: 2,
   },
-  blurWrap: {
-    borderRadius: GLASS.borderRadius,
-    overflow: 'hidden',
-  },
-  androidCard: {
-    backgroundColor: COLORS.surfaceLight,
-  },
-  cardOverlay: {
-    backgroundColor: COLORS.glassBg,
+  cardTouchable: {
+    paddingLeft: 3, // offset for accent strip
   },
   cardContent: {
     padding: 16,
-    paddingBottom: 0,
-    gap: 12,
+    paddingBottom: 14,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 12,
+  },
+  iconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
   },
   titleSection: {
     flex: 1,
-    marginRight: 16,
   },
   variantName: {
-    fontFamily: FONTS.bold,
+    fontFamily: FONTS.extrabold,
     color: COLORS.white,
-    fontSize: 26,
-    letterSpacing: 0.5,
+    fontSize: 22,
+    letterSpacing: 0.3,
   },
   subtitle: {
     fontFamily: FONTS.regular,
-    color: COLORS.secondaryText,
-    fontSize: 12,
-    marginTop: 4,
+    color: COLORS.mutedText,
+    fontSize: 11,
+    marginTop: 3,
+    opacity: 0.7,
   },
   closingTime: {
     color: COLORS.yellow,
-    fontSize: 13,
-    marginTop: 4,
-    fontWeight: '500',
+    fontSize: 12,
+    marginTop: 3,
+    fontFamily: FONTS.medium,
+  },
+  playCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1.5,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   liveSection: {
-    marginHorizontal: -16,
+    marginLeft: 3, // offset for accent strip
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderTopWidth: 1,
     borderTopColor: COLORS.glassBorder,
@@ -214,7 +247,6 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: COLORS.green,
     marginRight: 8,
   },
   playersText: {
@@ -256,7 +288,6 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 3,
-    backgroundColor: COLORS.accent,
     marginTop: 7,
     marginRight: 8,
   },
@@ -266,17 +297,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     flex: 1,
-  },
-  playButton: {
-    paddingHorizontal: 22,
-    paddingVertical: 10,
-    borderRadius: 10,
-    ...SHADOWS.glow,
-  },
-  playButtonText: {
-    color: COLORS.white,
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 1,
   },
 });

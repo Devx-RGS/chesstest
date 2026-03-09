@@ -8,6 +8,7 @@ import {
   Alert,
   Image,
   Modal,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -26,6 +27,7 @@ import VariantCard from "../_components/ui/VariantCard"
 import { tournamentScreenStyles } from "../_lib/styles/screens"
 import { GameState } from "../_lib/types/gamestate"
 import { TournamentDetails} from "../_lib/types/miscellaneous"
+import ChessPieceLoader from '../_components/ui/ChessPieceLoader'
 
 
 export default function TournamentScreen() {
@@ -312,7 +314,20 @@ export default function TournamentScreen() {
   // Tournament Lobby UI with Choose.tsx styling
   return (
     <View style={tournamentScreenStyles.container}>
-      <ScrollView contentContainerStyle={tournamentScreenStyles.scrollViewContent}>
+      <ScrollView
+        contentContainerStyle={tournamentScreenStyles.scrollViewContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={false}
+            onRefresh={() => {}}
+            tintColor="transparent"
+            colors={['transparent']}
+            progressViewOffset={-10000}
+            progressBackgroundColor="transparent"
+            style={{ backgroundColor: 'transparent' }}
+          />
+        }
+      >
         {/* Victory Rush Card */}
         <View style={tournamentScreenStyles.victoryRushCard}>
           <View style={tournamentScreenStyles.victoryRushContent}>

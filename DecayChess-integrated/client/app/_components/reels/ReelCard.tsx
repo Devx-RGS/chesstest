@@ -80,7 +80,7 @@ export function ReelCard({
     const [showCoinGate, setShowCoinGate] = useState(false);
     const [showPlayerSelect, setShowPlayerSelect] = useState(false);
     const [coinGateInfo, setCoinGateInfo] = useState<{ cost: number; balance: number } | null>(null);
-    const [triggerFired, setTriggerFired] = useState(false);
+
     const viewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const immersiveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const uiOpacity = useRef(new Animated.Value(1)).current;
@@ -131,7 +131,7 @@ export function ReelCard({
         setShowCoinGate(false);
         setShowPlayerSelect(false);
         setCoinGateInfo(null);
-        setTriggerFired(false);
+
         uiOpacity.setValue(1);
         swipeHintOpacity.setValue(0);
     }, [reel._id]);
@@ -314,20 +314,7 @@ export function ReelCard({
             // Don't auto-replay if manually paused
             if (status.didJustFinish && !showInteractiveSession && isPlaying) videoRef.current?.replayAsync();
 
-            // Auto-trigger interactive challenge at configured timestamp
-            if (
-                hasInteractiveChallenge &&
-                reel.interactive?.triggerTimestamp &&
-                !triggerFired &&
-                !showInteractiveSession &&
-                status.positionMillis != null
-            ) {
-                const positionSec = status.positionMillis / 1000;
-                if (positionSec >= reel.interactive.triggerTimestamp) {
-                    setTriggerFired(true);
-                    promptPlayerSelection();
-                }
-            }
+
         }
     };
 
@@ -496,11 +483,11 @@ export function ReelCard({
 
             {/* Swipe Hint for Interactive Challenge */}
             {showSwipeHint && hasInteractiveChallenge && (
-                <Animated.View style={[styles.swipeHint, { opacity: Animated.multiply(swipeHintOpacity, uiOpacity), transform: [{ scale: swipeHintPulse }] }]}>
+                <Animated.View style={[styles.swipeHint, { opacity: swipeHintOpacity, transform: [{ scale: swipeHintPulse }] }]}>
                     <View style={styles.swipeHintInner}>
-                        <Ionicons name="game-controller" size={18} color="#F5A623" />
+                        <Ionicons name="chevron-back" size={12} color="rgba(255,255,255,0.6)" />
                         <Text style={styles.swipeHintText}>Swipe to play</Text>
-                        <Ionicons name="chevron-forward" size={14} color="#F5A623" />
+                        <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.6)" />
                     </View>
                 </Animated.View>
             )}
@@ -615,9 +602,9 @@ const styles = StyleSheet.create({
     vsText: { fontFamily: FONTS.bold, color: "#A0A0B0", fontSize: 12, marginHorizontal: 8, fontStyle: "italic" },
     errorContainer: { justifyContent: "center", alignItems: "center", backgroundColor: "#111629" },
     errorText: { fontFamily: FONTS.regular, color: "#6B7280", fontSize: 14, textAlign: "center" },
-    swipeHint: { position: "absolute", left: 12, top: "45%", zIndex: 50 },
-    swipeHintInner: { flexDirection: "column", alignItems: "center", gap: 4, backgroundColor: "rgba(0,0,0,0.65)", paddingHorizontal: 10, paddingVertical: 12, borderRadius: 14, borderWidth: 1, borderColor: "rgba(245,166,35,0.3)" },
-    swipeHintText: { fontFamily: FONTS.semibold, fontSize: 10, color: "#F5A623", textAlign: "center" },
+    swipeHint: { position: "absolute", left: 0, right: 0, top: "45%", zIndex: 50, alignItems: "center" },
+    swipeHintInner: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(0,0,0,0.45)", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20 },
+    swipeHintText: { fontFamily: FONTS.semibold, fontSize: 13, color: "rgba(255,255,255,0.85)" },
     coinGateOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.75)", justifyContent: "center", alignItems: "center", zIndex: 100 },
     coinGateCard: { backgroundColor: "rgba(20,20,30,0.96)", borderRadius: 20, paddingVertical: 24, paddingHorizontal: 24, alignItems: "center", width: "78%", maxWidth: 300, borderWidth: 1, borderColor: "rgba(245,166,35,0.25)" },
     coinGateTitle: { fontFamily: FONTS.bold, fontSize: 18, color: "#fff", marginTop: 12, marginBottom: 6 },

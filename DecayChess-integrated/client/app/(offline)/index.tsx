@@ -57,7 +57,7 @@ export default function OfflineMenu() {
             activeOpacity={0.85}
           >
             <GlassCard
-              style={[styles.modeCard, selected === idx && styles.modeCardSelected]}
+              style={[styles.modeCard, ...(selected === idx ? [styles.modeCardSelected] : [])]}
               borderGlow={selected === idx}
             >
               <View style={styles.modeCardRow}>
