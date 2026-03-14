@@ -85,7 +85,7 @@ export default function DailyTasks() {
                         <Ionicons
                             name={task.completed ? "checkmark" : "time-outline"}
                             size={16}
-                            color={task.completed ? "#080B14" : COLORS.mutedText}
+                            color={task.completed ? "#0D3B2E" : COLORS.mutedText}
                         />
                     </View>
 

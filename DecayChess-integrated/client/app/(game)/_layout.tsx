@@ -13,7 +13,7 @@ export default function GameLayout() {
       <SafeAreaView
         style={{
           flex: 1,
-          backgroundColor: "#080B14",
+          backgroundColor: "#0D3B2E",
           justifyContent: "center",
           alignItems: "center",
         }}

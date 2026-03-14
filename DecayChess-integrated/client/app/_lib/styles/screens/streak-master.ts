@@ -3,11 +3,11 @@ import { COLORS, FONT_SIZES, SPACING } from '../base'
 
 // Streak Master screen specific colors
 const STREAK_COLORS = {
-  screenBackground: '#080B14',
-  cardBackground: '#111629',
+  screenBackground: '#0D3B2E',
+  cardBackground: '#10473A',
   victoryRushBackground: '#F5A623',
   accentGreen: '#F5A623',
-  walletBackground: '#111629',
+  walletBackground: '#10473A',
   walletBorder: 'rgba(0, 168, 98, 0.3)',
   backButtonBackground: 'rgba(255, 255, 255, 0.1)',
   borderColor: 'rgba(255, 255, 255, 0.1)',

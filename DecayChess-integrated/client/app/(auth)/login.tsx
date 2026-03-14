@@ -115,7 +115,7 @@ export default function Login() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <LinearGradient
-        colors={['#080B14', '#0E1228', '#0C0F20', '#080B14']}
+        colors={['#0D3B2E', '#0B3327', '#093026', '#0D3B2E']}
         locations={[0, 0.3, 0.7, 1]}
         style={StyleSheet.absoluteFillObject}
       />

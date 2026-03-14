@@ -205,7 +205,7 @@ export default function ReelsScreen() {
                 <Image source={{ uri: item.thumbnail }} style={styles.folderThumbnail} />
             ) : (
                 <LinearGradient
-                    colors={['#1E2545', '#111629']}
+                    colors={['#1A6B54', '#10473A']}
                     style={styles.folderThumbnail}
                 >
                     <Ionicons name="person" size={32} color="#F5A623" />
@@ -345,7 +345,7 @@ const FOLDER_CARD_WIDTH = (SCREEN_WIDTH - 56) / 2;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#080B14",
+        backgroundColor: "#0D3B2E",
     },
     tabBar: {
         position: "absolute",
@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
     folderThumbnail: {
         width: "100%",
         height: FOLDER_CARD_WIDTH * 0.75,
-        backgroundColor: "#111629",
+        backgroundColor: "#10473A",
         alignItems: "center",
         justifyContent: "center",
     },

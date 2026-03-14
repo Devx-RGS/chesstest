@@ -107,7 +107,7 @@ export default function AdminLoginScreen() {
                     disabled={isLoading || !email || !password}
                 >
                     {isLoading ? (
-                        <ActivityIndicator color="#080B14" />
+                        <ActivityIndicator color="#0D3B2E" />
                     ) : (
                         <Text style={styles.btnText}>Sign In</Text>
                     )}
@@ -129,7 +129,7 @@ export default function AdminLoginScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#080B14",
+        backgroundColor: "#0D3B2E",
         justifyContent: "center",
         padding: 24,
     },
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     btnText: {
         fontSize: 16,
         fontWeight: "700",
-        color: "#080B14",
+        color: "#0D3B2E",
     },
     backBtn: {
         flexDirection: "row",

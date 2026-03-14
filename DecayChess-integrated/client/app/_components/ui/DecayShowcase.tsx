@@ -247,7 +247,7 @@ export default DecayShowcase;
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#111629",
+    backgroundColor: "#10473A",
     borderRadius: BORDER_RADIUS.large,
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.lg,

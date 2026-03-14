@@ -578,7 +578,7 @@ export function ReelCard({
 }
 
 const styles = StyleSheet.create({
-    container: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT, backgroundColor: "#080B14" },
+    container: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT, backgroundColor: "#0D3B2E" },
     video: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
     poster: { width: "100%", height: "100%", resizeMode: "cover" },
     loadingContainer: { ...StyleSheet.absoluteFillObject, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.3)" },
@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
     playerDot: { width: 12, height: 12, borderRadius: 6 },
     playerName: { fontFamily: FONTS.semibold, color: "#FFFFFF", fontSize: 14, flexShrink: 1 },
     vsText: { fontFamily: FONTS.bold, color: "#A0A0B0", fontSize: 12, marginHorizontal: 8, fontStyle: "italic" },
-    errorContainer: { justifyContent: "center", alignItems: "center", backgroundColor: "#111629" },
+    errorContainer: { justifyContent: "center", alignItems: "center", backgroundColor: "#10473A" },
     errorText: { fontFamily: FONTS.regular, color: "#6B7280", fontSize: 14, textAlign: "center" },
     swipeHint: { position: "absolute", left: 0, right: 0, top: "45%", zIndex: 50, alignItems: "center" },
     swipeHintInner: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(0,0,0,0.45)", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20 },

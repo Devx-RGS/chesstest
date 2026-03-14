@@ -49,7 +49,7 @@ export default function CrazyTimeControl() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#080B14" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#0D3B2E" }}>
       <View style={{ flex: 1, paddingHorizontal: 20 }}>
         <View
           style={{

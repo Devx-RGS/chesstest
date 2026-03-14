@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native'
 export const tournamentScreenStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#080B14", // Main background color from Choose.tsx
+    backgroundColor: "#0D3B2E", // Main background color from Choose.tsx
   },
   victoryRushCard: {
     backgroundColor: "#F5A623", // Deep purple color
@@ -103,7 +103,7 @@ export const tournamentScreenStyles = StyleSheet.create({
   connectingContainer: {
     marginBottom: 20,
     alignItems: "center",
-    backgroundColor: "#111629", // Card background from Choose.tsx
+    backgroundColor: "#10473A", // Card background from Choose.tsx
     borderRadius: 16,
     padding: 20,
     shadowColor: "#000",

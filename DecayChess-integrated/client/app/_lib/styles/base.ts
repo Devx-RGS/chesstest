@@ -1,14 +1,14 @@
-// DecayChess — Premium Gold & Navy Design System — Polished
+// DecayChess — Premium Gold & Emerald Green Design System — Polished
 import { StyleSheet, Platform } from 'react-native'
 
 // ─── Color Palette ───────────────────────────────────────────────
 export const COLORS = {
-  // Core backgrounds (deep navy, layered)
-  background: '#080B14',
-  surfaceDark: '#0C1021',
-  surface: '#111629',
-  surfaceLight: '#171D33',
-  surfaceLighter: '#1E2545',
+  // Core backgrounds (deep emerald green, layered)
+  background: '#0D3B2E',
+  surfaceDark: '#0A2E24',
+  surface: '#10473A',
+  surfaceLight: '#145B47',
+  surfaceLighter: '#1A6B54',
 
   // Accent colors — Gold/Amber
   accent: '#F5A623',
@@ -40,7 +40,7 @@ export const COLORS = {
   // Text — WCAG-friendly contrast on dark bg
   white: '#FFFFFF',
   black: '#000000',
-  primaryText: '#F0ECF8',      // Near-white, excellent contrast
+  primaryText: '#E8F0EC',      // Warm off-white for green bg
   secondaryText: '#B0ACBE',    // Visible, not washed out
   mutedText: '#706D82',        // Subtle but readable
   captionText: '#5D5A72',      // Captions/labels
@@ -60,12 +60,12 @@ export const COLORS = {
   primaryGreen: '#F5A623',
   gray: '#666666',
   lightGray: '#CCCCCC',
-  darkGray: '#171D33',
-  timerBackground: '#171D33',
+  darkGray: '#145B47',
+  timerBackground: '#145B47',
   timerText: '#FFFFFF',
   timerLow: '#FF5C5C',
   modalOverlay: 'rgba(0, 0, 0, 0.7)',
-  modalBackground: '#111629',
+  modalBackground: '#10473A',
 }
 
 // ─── Glassmorphism Tokens ────────────────────────────────────────

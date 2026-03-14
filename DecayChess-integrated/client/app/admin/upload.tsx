@@ -138,7 +138,7 @@ function UploadContent() {
 
     return (
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-            <LinearGradient colors={["#080B14", "#0f172a"]} style={{ flex: 1 }}>
+            <LinearGradient colors={["#0D3B2E", "#093026"]} style={{ flex: 1 }}>
                 <ScrollView style={styles.container} contentContainerStyle={styles.content}>
                     {/* Header */}
                     <View style={styles.header}>
@@ -157,14 +157,14 @@ function UploadContent() {
                                 style={[styles.modeBtn, uploadMode === "local" && styles.modeBtnActive]}
                                 onPress={() => setUploadMode("local")}
                             >
-                                <Ionicons name="phone-portrait-outline" size={16} color={uploadMode === "local" ? "#080B14" : "#A0A0B0"} />
+                                <Ionicons name="phone-portrait-outline" size={16} color={uploadMode === "local" ? "#0D3B2E" : "#A0A0B0"} />
                                 <Text style={[styles.modeBtnText, uploadMode === "local" && styles.modeBtnTextActive]}>Device</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={[styles.modeBtn, uploadMode === "url" && styles.modeBtnActive]}
                                 onPress={() => setUploadMode("url")}
                             >
-                                <Ionicons name="link-outline" size={16} color={uploadMode === "url" ? "#080B14" : "#A0A0B0"} />
+                                <Ionicons name="link-outline" size={16} color={uploadMode === "url" ? "#0D3B2E" : "#A0A0B0"} />
                                 <Text style={[styles.modeBtnText, uploadMode === "url" && styles.modeBtnTextActive]}>URL</Text>
                             </TouchableOpacity>
                         </View>
@@ -350,10 +350,10 @@ function UploadContent() {
                         disabled={postReel.isPending}
                     >
                         {postReel.isPending ? (
-                            <ActivityIndicator color="#080B14" />
+                            <ActivityIndicator color="#0D3B2E" />
                         ) : (
                             <>
-                                <Ionicons name="cloud-upload-outline" size={20} color="#080B14" />
+                                <Ionicons name="cloud-upload-outline" size={20} color="#0D3B2E" />
                                 <Text style={styles.submitText}>Upload Reel</Text>
                             </>
                         )}
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
     },
     modeBtnActive: { backgroundColor: "#F5A623", borderColor: "#F5A623" },
     modeBtnText: { fontFamily: FONTS.semibold, color: "#A0A0B0", fontSize: 14 },
-    modeBtnTextActive: { color: "#080B14" },
+    modeBtnTextActive: { color: "#0D3B2E" },
     pickBtn: {
         flexDirection: "row",
         alignItems: "center",
@@ -471,5 +471,5 @@ const styles = StyleSheet.create({
         marginTop: 8,
     },
     submitBtnDisabled: { opacity: 0.6 },
-    submitText: { fontFamily: FONTS.bold, fontSize: 17, color: "#080B14" },
+    submitText: { fontFamily: FONTS.bold, fontSize: 17, color: "#0D3B2E" },
 });

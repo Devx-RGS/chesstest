@@ -309,7 +309,7 @@ export default function AdminDashboardScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#080B14",
+        backgroundColor: "#0D3B2E",
     },
     content: {
         padding: 20,
@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
     gmFolderThumb: {
         width: 130,
         height: 90,
-        backgroundColor: "#111629",
+        backgroundColor: "#10473A",
     },
     gmFolderPlaceholder: {
         alignItems: "center",
@@ -520,7 +520,7 @@ const styles = StyleSheet.create({
     },
     modalCard: {
         width: "100%",
-        backgroundColor: "#111629",
+        backgroundColor: "#10473A",
         borderRadius: 20,
         padding: 24,
         borderWidth: 1,

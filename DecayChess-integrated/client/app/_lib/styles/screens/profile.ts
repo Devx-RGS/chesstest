@@ -4,11 +4,11 @@ import { StyleSheet } from 'react-native'
 export const profileScreenStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#080B14',
+    backgroundColor: '#0D3B2E',
     padding: 20,
   },
   profileBox: {
-    backgroundColor: '#111629',
+    backgroundColor: '#10473A',
     borderRadius: 16,
     padding: 24,
     shadowColor: '#000',
@@ -59,7 +59,7 @@ export const profileScreenStyles = StyleSheet.create({
     gap: 12,
   },
   optionButton: {
-    backgroundColor: '#111629',
+    backgroundColor: '#10473A',
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderRadius: 12,

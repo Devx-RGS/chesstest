@@ -288,7 +288,7 @@ export default function MatchMaking() {
   } else if (loading) {
     // Show loading spinner while waiting for match to be established
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: "#080B14", justifyContent: "center", alignItems: "center" }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#0D3B2E", justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" color="#F5A623" />
         <Text style={{ color: "#A0A0B0", fontSize: 16, marginTop: 12 }}>
           Waiting for match to be established...
@@ -299,7 +299,7 @@ export default function MatchMaking() {
 
   // Show matchmaking UI
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#080B14", justifyContent: "center", alignItems: "center", padding: 20 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#0D3B2E", justifyContent: "center", alignItems: "center", padding: 20 }}>
       <Text style={{ color: "#fff", fontSize: 28, fontWeight: "bold", marginBottom: 32 }}>
         Matchmaking...
       </Text>

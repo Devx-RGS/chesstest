@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
         maxHeight: SCREEN_HEIGHT * 0.65,
     },
     sheet: {
-        backgroundColor: "#111629",
+        backgroundColor: "#10473A",
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
         paddingBottom: Platform.OS === "ios" ? 34 : 16,

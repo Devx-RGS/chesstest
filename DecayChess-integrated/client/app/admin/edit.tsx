@@ -123,7 +123,7 @@ function EditContent() {
 
     if (!reel) {
         return (
-            <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#080B14" }}>
+            <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#0D3B2E" }}>
                 <ActivityIndicator size="large" color="#F5A623" />
                 <Text style={{ color: "#A0A0B0", marginTop: 12 }}>Loading reel...</Text>
             </View>
@@ -132,7 +132,7 @@ function EditContent() {
 
     return (
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-            <LinearGradient colors={["#080B14", "#0f172a"]} style={{ flex: 1 }}>
+            <LinearGradient colors={["#0D3B2E", "#093026"]} style={{ flex: 1 }}>
                 <ScrollView style={styles.container} contentContainerStyle={styles.content}>
                     {/* Header */}
                     <View style={styles.header}>
@@ -310,10 +310,10 @@ function EditContent() {
                         disabled={updateReel.isPending}
                     >
                         {updateReel.isPending ? (
-                            <ActivityIndicator color="#080B14" />
+                            <ActivityIndicator color="#0D3B2E" />
                         ) : (
                             <>
-                                <Ionicons name="save-outline" size={20} color="#080B14" />
+                                <Ionicons name="save-outline" size={20} color="#0D3B2E" />
                                 <Text style={styles.submitText}>Save Changes</Text>
                             </>
                         )}
@@ -399,5 +399,5 @@ const styles = StyleSheet.create({
         marginTop: 8,
     },
     submitBtnDisabled: { opacity: 0.6 },
-    submitText: { fontFamily: FONTS.bold, fontSize: 17, color: "#080B14" },
+    submitText: { fontFamily: FONTS.bold, fontSize: 17, color: "#0D3B2E" },
 });

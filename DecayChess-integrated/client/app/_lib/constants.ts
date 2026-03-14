@@ -64,8 +64,8 @@ export const ROUTES = {
  */
 export const COLORS = {
   PRIMARY: '#F5A623',
-  BACKGROUND: '#080B14',
-  SECONDARY: '#111629',
+  BACKGROUND: '#0D3B2E',
+  SECONDARY: '#10473A',
   TEXT: '#E0E0E8',
   TEXT_SECONDARY: '#A0A0B0',
 } as const;
