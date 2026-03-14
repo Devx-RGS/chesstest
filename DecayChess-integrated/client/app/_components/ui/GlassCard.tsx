@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
     overlay: {
-        backgroundColor: 'rgba(255,255,255,0.03)',
+        backgroundColor: 'rgba(255,255,255,0.05)',
     },
     innerHighlight: {
         // Subtle top inner highlight for depth
@@ -88,6 +88,6 @@ const styles = StyleSheet.create({
         ...SHADOWS.medium,
     },
     androidFill: {
-        backgroundColor: 'rgba(23, 29, 51, 0.92)',
+        backgroundColor: 'rgba(13, 59, 46, 0.92)',
     },
 });

@@ -630,7 +630,7 @@ const skeletonStyles = StyleSheet.create({
     borderRadius: 10,
   },
   variantCard: {
-    backgroundColor: "#171D33",
+    backgroundColor: "#0A2E24",
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,

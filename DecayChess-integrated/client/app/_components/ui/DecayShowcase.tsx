@@ -254,6 +254,8 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 380,
     overflow: "hidden",
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     ...SHADOWS.small,
   },
   cardContent: {
@@ -304,14 +306,14 @@ const styles = StyleSheet.create({
   },
   boardContainer: {
     width: "100%",
-    maxWidth: 220,
-    maxHeight: 220,
+    maxWidth: 240,
+    maxHeight: 240,
     aspectRatio: 1,
     alignSelf: "center",
     borderRadius: BORDER_RADIUS.medium,
     overflow: "hidden",
     borderWidth: 2,
-    borderColor: "#1F1F21",
+    borderColor: 'rgba(20, 91, 71, 0.6)',
     marginBottom: SPACING.md,
   },
   boardRow: {

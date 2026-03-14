@@ -148,15 +148,16 @@ const styles = StyleSheet.create({
   },
   pageTitle: {
     color: COLORS.white,
-    fontSize: 26,
-    fontWeight: '700',
+    fontSize: 32,
+    fontWeight: '800',
     letterSpacing: 0.3,
     marginBottom: 6,
   },
   pageSubtitle: {
     color: COLORS.secondaryText,
-    fontSize: 15,
+    fontSize: 14,
     marginBottom: 28,
+    lineHeight: 20,
   },
   sectionTitle: {
     color: COLORS.white,

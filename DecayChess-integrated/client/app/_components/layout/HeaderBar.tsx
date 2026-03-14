@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   headerAndroid: {
-    backgroundColor: 'rgba(17, 22, 41, 0.95)',
+    backgroundColor: 'rgba(10, 46, 36, 0.95)',
   },
   headerInner: {
     flexDirection: 'row',
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     ...SHADOWS.glass,
   },
   menuCardAndroid: {
-    backgroundColor: 'rgba(23, 29, 51, 0.98)',
+    backgroundColor: 'rgba(13, 59, 46, 0.98)',
   },
   menuContent: {
     backgroundColor: 'rgba(255,255,255,0.03)',

@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     ...SHADOWS.glass,
   },
   androidBar: {
-    backgroundColor: 'rgba(17, 22, 41, 0.95)',
+    backgroundColor: 'rgba(10, 46, 36, 0.95)',
   },
   innerContainer: {
     flexDirection: 'row',

@@ -25,7 +25,7 @@ const LobbyPage: React.FC = () => {
   useEffect(() => {
     const unsub: (() => void)[] = [];
 
-    unsub.push(on('queue:matchFound', (data: any) => {
+    unsub.push(on('queue:matched', (data: any) => {
       console.log('[Lobby] Match found!', data);
       setInQueue(false);
       // Navigate to game with the session data

@@ -266,12 +266,17 @@ const websocketRoutes = (io) => {
         emitGameEvent(gameNamespace.to(sessionId), "game:move", { move: moveObj, gameState })
 
         // --- MODIFICATION START ---
-        // Emit main game timers from gameState.board
+        // Emit main game timers from gameState.board, including decay state
         emitGameEvent(gameNamespace.to(sessionId), "game:timer", {
           white: gameState.board.whiteTime,
           black: gameState.board.blackTime,
+          activeColor: gameState.board.activeColor,
           // For Crazyhouse withTimer, pass dropTimers if available
           dropTimers: gameState.board.dropTimers || null,
+          // Decay state for sync
+          queenDecayTimers: gameState.board.queenDecayTimers || null,
+          majorPieceDecayTimers: gameState.board.majorPieceDecayTimers || null,
+          frozenPieces: gameState.board.frozenPieces || null,
         })
         // --- MODIFICATION END ---
 

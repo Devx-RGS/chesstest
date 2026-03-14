@@ -230,7 +230,6 @@ function updateDecayTimers(state, currentTimestamp) {
 
   // Only update decay timers for the player whose turn it is
   const QUEEN_INITIAL_DECAY_TIME = 25000 // 25 seconds
-  const MAJOR_PIECE_INITIAL_DECAY_TIME = 20000 // 20 seconds
   const queenTimer = state.queenDecayTimers[color]
   if (queenTimer.active && !queenTimer.frozen) {
     const elapsed = currentTimestamp - state.turnStartTimestamp
@@ -240,29 +239,59 @@ function updateDecayTimers(state, currentTimestamp) {
     if (queenTimer.timeRemaining <= 0) {
       queenTimer.frozen = true
       queenTimer.active = false
+      // REMOVE the queen from the board instead of just freezing
       if (queenTimer.square) {
-        state.frozenPieces[color].push(queenTimer.square)
+        // Remove queen from FEN
+        const queenSquare = queenTimer.square
+        const file = queenSquare.charCodeAt(0) - 'a'.charCodeAt(0) // 0-7
+        const rank = parseInt(queenSquare[1]) - 1 // 0-7 (rank 1 = index 0)
+        const fenRow = 7 - rank // FEN rows go from rank 8 (index 0) to rank 1 (index 7)
+        
+        const fenParts = state.fen.split(" ")
+        const rows = fenParts[0].split("/")
+        
+        // Expand the row to full 8 characters
+        let expandedRow = ""
+        for (const c of rows[fenRow]) {
+          if (c >= '1' && c <= '8') {
+            expandedRow += ".".repeat(parseInt(c))
+          } else {
+            expandedRow += c
+          }
+        }
+        
+        // Remove the queen (replace with empty)
+        expandedRow = expandedRow.substring(0, file) + "." + expandedRow.substring(file + 1)
+        
+        // Re-compress the row
+        let compressed = ""
+        let emptyCount = 0
+        for (const c of expandedRow) {
+          if (c === ".") {
+            emptyCount++
+          } else {
+            if (emptyCount > 0) {
+              compressed += emptyCount
+              emptyCount = 0
+            }
+            compressed += c
+          }
+        }
+        if (emptyCount > 0) compressed += emptyCount
+        
+        rows[fenRow] = compressed
+        fenParts[0] = rows.join("/")
+        state.fen = fenParts.join(" ")
+        
+        console.log(`${color} queen REMOVED from board at ${queenSquare} due to decay timer expiration`)
+        console.log(`Updated FEN: ${state.fen}`)
       }
-      console.log(`${color} queen frozen due to decay timer expiration`)
     }
   }
 
-  // Update major piece decay timer
-  const majorTimer = state.majorPieceDecayTimers[color]
-  if (majorTimer.active && !majorTimer.frozen) {
-    const elapsed = currentTimestamp - state.turnStartTimestamp
-    majorTimer.timeRemaining = Math.max(0, majorTimer.timeRemaining - elapsed)
-    // Clamp major piece timer to 20 seconds
-    majorTimer.timeRemaining = Math.min(majorTimer.timeRemaining, MAJOR_PIECE_INITIAL_DECAY_TIME)
-    if (majorTimer.timeRemaining <= 0) {
-      majorTimer.frozen = true
-      majorTimer.active = false
-      if (majorTimer.square) {
-        state.frozenPieces[color].push(majorTimer.square)
-      }
-      console.log(`${color} ${majorTimer.pieceType} at ${majorTimer.square} frozen due to decay timer expiration`)
-    }
-  }
+  // NOTE: Major piece decay timers are no longer used since queen is removed from board
+  // when its timer expires (no freeze-in-place). Keeping the data structure for compatibility
+  // but not actively updating it.
 }
 
 // Check if a move involves a frozen piece
@@ -316,75 +345,8 @@ function handleDecayMove(state, move, playerColor, currentTimestamp) {
       )
     }
   }
-  // Handle major piece moves - FIXED VERSION
-  else if (isMajorPiece(pieceType)) {
-    const queenTimer = state.queenDecayTimers[color]
-    const majorTimer = state.majorPieceDecayTimers[color];
-    
-    // CORE REQUIREMENT: Only allow one ACTIVE major piece to decay at a time after queen is frozen
-    // When a major piece timer expires (frozen), the NEXT major piece moved starts a NEW timer
-    
-    // Case 1: No active timer - can start a new one if queen is frozen
-    if (queenTimer.frozen && !majorTimer.active) {
-      // Start decay timer for the major piece - either first one or after previous one froze
-      majorTimer.active = true;
-      majorTimer.frozen = false; // Reset frozen flag to allow this new timer
-      majorTimer.timeRemaining = MAJOR_PIECE_INITIAL_DECAY_TIME;
-      majorTimer.moveCount = 1;
-      majorTimer.pieceType = pieceType;
-      majorTimer.square = move.to;
-      console.log(`${color} ${pieceType} decay timer started: 20 seconds (queen frozen, starting new major decay)`);
-    } 
-    // Case 2: There's an active timer
-    else if (majorTimer.active && !majorTimer.frozen) {
-      // Check if the decaying piece still exists on the board at its current square
-      const decayingPieceExists = game.get(majorTimer.square);
-      const isCorrectPiece = decayingPieceExists && 
-        decayingPieceExists.type === majorTimer.pieceType && 
-        decayingPieceExists.color === (color === "white" ? "w" : "b");
-      
-      if (!isCorrectPiece) {
-        // Decaying piece was captured or no longer exists, clear the timer
-        majorTimer.active = false;
-        majorTimer.frozen = false;
-        majorTimer.timeRemaining = 0;
-        majorTimer.moveCount = 0;
-        majorTimer.pieceType = null;
-        majorTimer.square = null;
-        console.log(`${color} major piece decay timer cleared (piece no longer exists)`);
-        
-        // Now start a new timer for THIS piece
-        if (queenTimer.frozen) {
-          majorTimer.active = true;
-          majorTimer.timeRemaining = MAJOR_PIECE_INITIAL_DECAY_TIME;
-          majorTimer.moveCount = 1;
-          majorTimer.pieceType = pieceType;
-          majorTimer.square = move.to;
-          console.log(`${color} ${pieceType} decay timer started: 20 seconds (replacing cleared timer)`);
-        }
-      } else if (majorTimer.square === move.from && majorTimer.pieceType === pieceType) {
-        // This is the currently decaying piece moving - add +2 seconds
-        majorTimer.moveCount++;
-        majorTimer.timeRemaining = Math.min(majorTimer.timeRemaining + DECAY_TIME_INCREMENT, MAJOR_PIECE_INITIAL_DECAY_TIME);
-        majorTimer.square = move.to;
-        console.log(`${color} ${pieceType} move #${majorTimer.moveCount}: +2 seconds added, total: ${majorTimer.timeRemaining}ms`);
-      } else {
-        // Another major piece is trying to move while one is already actively decaying - DO NOTHING
-        console.log(`${color} ${pieceType} at ${move.from} - ${majorTimer.pieceType} at ${majorTimer.square} is already decaying (no timer change)`);
-      }
-    }
-    // Case 3: majorTimer.frozen is true but active is false - this shouldn't happen normally
-    // but if it does, we should allow a new timer
-    else if (majorTimer.frozen && !majorTimer.active && queenTimer.frozen) {
-      majorTimer.active = true;
-      majorTimer.frozen = false;
-      majorTimer.timeRemaining = MAJOR_PIECE_INITIAL_DECAY_TIME;
-      majorTimer.moveCount = 1;
-      majorTimer.pieceType = pieceType;
-      majorTimer.square = move.to;
-      console.log(`${color} ${pieceType} decay timer started: 20 seconds (after previous major piece frozen)`);
-    }
-  }
+  // Major piece decay timers are disabled - queen is removed from board when its timer expires,
+  // so major pieces no longer need decay timers.
 }
 
 

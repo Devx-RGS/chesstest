@@ -224,8 +224,14 @@ export function useDecayGame(initialGameState: GameState, userId: string) {
       if (gs.board?.moveHistory) setMoveHistory(gs.board.moveHistory);
     }));
 
-    unsub.push(on('game:timer', ({ white, black }: any) => {
+    unsub.push(on('game:timer', ({ white, black, queenDecayTimers, majorPieceDecayTimers, frozenPieces: fp }: any) => {
       setLocalTimers({ white: safeTimerValue(white), black: safeTimerValue(black) });
+      // Sync decay state from timer updates (server sends this with every timer event)
+      if (queenDecayTimers || majorPieceDecayTimers || fp) {
+        syncDecayFromServer({
+          board: { queenDecayTimers, majorPieceDecayTimers, frozenPieces: fp },
+        });
+      }
     }));
 
     unsub.push(on('game:gameState', ({ gameState: gs }: any) => {
@@ -276,9 +282,12 @@ export function useDecayGame(initialGameState: GameState, userId: string) {
   }, [gameState.status, gameState.board.activeColor, localTimers.white, localTimers.black]);
 
   // --- Decay timer countdown ---
+  // Decay timers only tick during that player's own turn (per game rules)
   useEffect(() => {
     if (decayTimerRef.current) clearInterval(decayTimerRef.current);
     if (gameState.status !== 'active') return;
+
+    const activeColor = gameState.board.activeColor;
 
     decayTimerRef.current = setInterval(() => {
       setDecayState(prev => {
@@ -290,12 +299,18 @@ export function useDecayGame(initialGameState: GameState, userId: string) {
           // Only one timer per player
           const [sq, timer] = entries[0];
           if (timer && timer.isActive) {
-            const newTime = Math.max(0, timer.timeLeft - 100);
-            if (newTime !== timer.timeLeft) changed = true;
-            if (newTime > 0) {
-              newState[color][sq] = { ...timer, timeLeft: newTime };
+            // Only tick down if it's this player's turn
+            if (color === activeColor) {
+              const newTime = Math.max(0, timer.timeLeft - 100);
+              if (newTime !== timer.timeLeft) changed = true;
+              if (newTime > 0) {
+                newState[color][sq] = { ...timer, timeLeft: newTime };
+              }
+              // If timer hits 0, server will handle freezing
+            } else {
+              // Not this player's turn — keep timer frozen at current value
+              newState[color][sq] = { ...timer };
             }
-            // If timer hits 0, server will handle freezing
           }
         });
         return changed ? newState : prev;
@@ -303,7 +318,7 @@ export function useDecayGame(initialGameState: GameState, userId: string) {
     }, 100);
 
     return () => clearInterval(decayTimerRef.current);
-  }, [gameState.status]);
+  }, [gameState.status, gameState.board.activeColor]);
 
   return {
     gameState, playerColor, isMyTurn, boardFlipped, setBoardFlipped,
